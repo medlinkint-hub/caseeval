@@ -1,0 +1,2592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>HealthWatch — TPA Claims</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700&family=DM+Sans:wght@400;500&family=DM+Mono&display=swap" rel="stylesheet">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+// Initialize Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyBVHIIFxRQvHotsM_lEwGpCTJtc2HRhofc",
+  authDomain: "healthwatch-tpa.firebaseapp.com",
+  projectId: "healthwatch-tpa",
+  storageBucket: "healthwatch-tpa.firebasestorage.app",
+  messagingSenderId: "189053320217",
+  appId: "1:189053320217:web:7f88560dbd0098aca37e88"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
+console.log('[Firebase] Initialized:', firebaseConfig.projectId);
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;font-size:14px}
+:root{
+--bg:#f0f4f8;--bg2:#fff;--bg3:#f5f7fa;--bg4:#e8edf3;
+--bor:#dce3ec;--bor2:#c8d2df;
+--tx:#1a2a72;--tx2:#3a4a7a;--tx3:#8090b0;
+--navy:#1a2a72;--navy2:#0f1d5a;
+--red:#e8231a;--red2:#c41c14;--redbg:rgba(232,35,26,.1);
+--gr:#10b981;--grbg:rgba(16,185,129,.12);
+--am:#f59e0b;--ambg:rgba(245,158,11,.12);
+--r:10px;--r2:7px;
+}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#c8d2df;border-radius:3px}
+.app{display:flex;height:100vh}
+
+/* SIDEBAR */
+.sb{width:220px;min-width:220px;background:var(--navy);display:flex;flex-direction:column;z-index:10}
+.sb-logo{padding:16px 14px 12px;border-bottom:1px solid rgba(255,255,255,.15);text-align:center}
+.sb-logo img{width:130px;filter:brightness(0) invert(1);display:block;margin:0 auto 6px}
+.sb-logo-sub{font-size:10px;color:rgba(255,255,255,.45);letter-spacing:.06em;text-transform:uppercase}
+.sb-nav{flex:1;overflow-y:auto;padding:10px 8px}
+.nl{font-size:10px;font-weight:600;color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase;padding:10px 8px 4px}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:var(--r2);cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;font-weight:500;transition:all .15s;border:1px solid transparent;margin-bottom:2px}
+.ni:hover{background:rgba(255,255,255,.12);color:#fff}
+.ni.on{background:rgba(232,35,26,.25);color:#fff;border-color:rgba(232,35,26,.5)}
+.ni svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;flex-shrink:0}
+.nb{margin-left:auto;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px}
+.sb-foot{padding:10px 8px;border-top:1px solid rgba(255,255,255,.15)}
+.su{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--r2);cursor:pointer}
+.su:hover{background:rgba(255,255,255,.1)}
+.av{width:28px;height:28px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* MAIN */
+.mn{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:54px;padding:0 20px;background:#fff;border-bottom:3px solid var(--red);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 8px rgba(26,42,114,.06)}
+.tt{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--navy)}
+.ts{font-size:12px;color:var(--tx3)}
+.tra{display:flex;align-items:center;gap:8px}
+.content{flex:1;overflow-y:auto;padding:20px;background:var(--bg);display:flex;flex-direction:column;gap:16px}
+
+/* CARDS */
+.card{background:#fff;border:1px solid var(--bor);border-radius:var(--r);padding:18px 20px;box-shadow:0 1px 4px rgba(26,42,114,.05)}
+.ct{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:14px}
+
+/* STAT CARDS */
+.sg{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.sc{background:#fff;border:1px solid var(--bor);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(26,42,114,.06)}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--acc)}
+.sc.bl{--acc:var(--navy)}.sc.gr{--acc:var(--gr)}.sc.am{--acc:var(--am)}.sc.rd{--acc:var(--red)}
+.sl{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.sv{font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:var(--navy);line-height:1}
+.ss{font-size:11px;color:var(--tx3);margin-top:5px}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse}
+th{font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;padding:8px 12px;text-align:left;border-bottom:2px solid var(--bor);background:#f8fafc}
+td{padding:10px 12px;border-bottom:1px solid var(--bor);font-size:13px;color:var(--tx2)}
+tbody tr:hover td{background:#f5f7fa}
+tbody tr{cursor:pointer;transition:background .1s}
+.tm{color:var(--navy)!important;font-weight:500}
+.tmo{font-family:'DM Mono',monospace;font-size:11px;color:var(--tx3)!important}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.bbl{background:rgba(26,42,114,.1);color:var(--navy)}
+.bgr{background:var(--grbg);color:#059669}
+.bam{background:var(--ambg);color:#d97706}
+.brd{background:var(--redbg);color:var(--red)}
+.bpu{background:rgba(124,58,237,.1);color:#7c3aed}
+.bgy{background:#e8edf3;color:var(--tx3)}
+.pr{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.pd{width:6px;height:6px;border-radius:50%}
+.pcr .pd{background:var(--red)}.pcr{color:var(--red)}
+.phi .pd{background:var(--am)}.phi{color:var(--am)}
+.pme .pd{background:var(--navy)}.pme{color:var(--navy)}
+.pro .pd{background:var(--tx3)}.pro{color:var(--tx3)}
+
+/* FORMS */
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em}
+.fg input,.fg select,.fg textarea{padding:9px 11px;border:1px solid var(--bor);border-radius:var(--r2);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--navy);background:#fff;outline:none;transition:border-color .15s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,42,114,.1)}
+.fg textarea{resize:vertical;min-height:80px;line-height:1.6}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* BUTTONS */
+.btn{padding:8px 16px;border-radius:var(--r2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:all .15s}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.bp{background:var(--navy);color:#fff;border-color:var(--navy)}.bp:hover{background:var(--navy2)}.bp:disabled{opacity:.4;cursor:not-allowed}
+.br2{background:var(--red);color:#fff;border-color:var(--red)}.br2:hover{background:var(--red2)}
+.bs{background:transparent;color:var(--tx2);border-color:var(--bor)}.bs:hover{background:var(--bg3);color:var(--navy)}
+.bd{background:var(--redbg);color:var(--red)}.bd:hover{background:rgba(232,35,26,.2)}
+.bg2c{background:var(--grbg);color:#059669}.bg2c:hover{background:rgba(16,185,129,.2)}
+.tbtn{padding:7px 14px;border-radius:var(--r2);border:1px solid var(--bor);background:transparent;color:var(--tx2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.tbtn:hover{background:var(--bg3);color:var(--navy)}
+.tbtn.pri{background:var(--red);color:#fff;border-color:var(--red)}.tbtn.pri:hover{background:var(--red2)}
+.tbtn svg,.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.brow{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+
+/* DROPZONE */
+label.dz,div.dz{border:2px dashed var(--bor2);border-radius:var(--r);padding:24px 16px;text-align:center;cursor:pointer;background:var(--bg3);transition:all .2s;display:block;width:100%}
+.dz:hover,.dz.ov{border-color:var(--navy);background:rgba(26,42,114,.05)}
+.dz svg{width:28px;height:28px;stroke:var(--tx3);fill:none;stroke-width:1.5;margin-bottom:8px;display:block;margin:0 auto 8px}
+.dz p{font-size:13px;color:var(--tx2);margin-bottom:3px}.dz span{font-size:11px;color:var(--tx3)}
+
+/* FILE LIST */
+.fl{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.fi{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--bor);border-radius:var(--r2);background:var(--bg3)}
+.fic{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'DM Mono',monospace;flex-shrink:0}
+.fpdf{background:var(--redbg);color:var(--red)}.fimg{background:var(--grbg);color:#059669}
+.fdoc{background:rgba(26,42,114,.1);color:var(--navy)}.foth{background:#e8edf3;color:var(--tx3)}
+.fn{font-size:12px;font-weight:500;color:var(--navy);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fsz{font-size:11px;color:var(--tx3)}
+.fdel{width:22px;height:22px;border:none;background:none;cursor:pointer;color:var(--tx3);border-radius:4px;display:flex;align-items:center;justify-content:center}
+.fdel:hover{background:var(--redbg);color:var(--red)}
+.fdel svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* STATUS */
+.evs{display:flex;align-items:center;gap:9px;padding:11px 14px;border-radius:var(--r2);font-size:13px;font-weight:500}
+.evi{background:var(--bg3);color:var(--tx2)}
+.evr{background:rgba(26,42,114,.08);color:var(--navy)}
+.evd{background:var(--grbg);color:#059669}
+.eve{background:var(--redbg);color:var(--red)}
+.evs svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0}
+.spin{width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* EVAL RESULT */
+.er{margin-top:12px;font-size:13px;line-height:1.75;color:var(--tx2)}
+.esec{font-family:'Syne',sans-serif;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.07em;margin:16px 0 6px;padding-bottom:5px;border-bottom:1px solid var(--bor)}
+.ebul{padding-left:14px;margin-bottom:3px}
+.edec{margin-top:12px;padding:12px 16px;border-radius:var(--r2);font-weight:600}
+.eap{background:var(--grbg);color:#059669;border:1px solid rgba(16,185,129,.2)}
+.epa{background:var(--ambg);color:#d97706;border:1px solid rgba(245,158,11,.2)}
+.edc{background:var(--redbg);color:var(--red);border:1px solid rgba(232,35,26,.2)}
+
+/* TIMELINE */
+.tl{display:flex;flex-direction:column}
+.tli{display:flex;gap:12px;padding-bottom:14px}
+.tli:last-child{padding-bottom:0}
+.tll{display:flex;flex-direction:column;align-items:center;flex-shrink:0}
+.tld{width:10px;height:10px;border-radius:50%;background:var(--navy);flex-shrink:0;margin-top:3px;border:2px solid #fff}
+.tlv{flex:1;width:1px;background:var(--bor);margin:4px 0}
+.tli:last-child .tlv{display:none}
+.tla{font-size:12px;font-weight:500;color:var(--navy)}
+.tlm{font-size:11px;color:var(--tx3);margin-top:2px}
+
+/* INFO BOX */
+.ib{padding:11px 14px;border-radius:var(--r2);border-left:3px solid var(--navy);background:rgba(26,42,114,.06);margin-bottom:14px}
+.ib p{font-size:12px;color:var(--navy);line-height:1.5}
+.ib.e{border-left-color:var(--red);background:var(--redbg)}.ib.e p{color:var(--red)}
+.ib.s{border-left-color:var(--gr);background:var(--grbg)}.ib.s p{color:#059669}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(26,42,114,.35);transition:transform .25s cubic-bezier(.34,1.56,.64,1);z-index:200;white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* CHART */
+.cw{position:relative;height:180px}
+
+/* DOC TEMPLATES */
+.dt{border:1px solid var(--bor);border-radius:var(--r2);overflow:hidden;margin-bottom:10px}
+.dth{padding:11px 14px;background:var(--bg3);display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.dth:hover{background:var(--bg4)}
+.dtht{font-size:13px;font-weight:600;color:var(--navy)}
+.dths{font-size:11px;color:var(--tx3);margin-top:2px}
+.dtb{padding:14px;border-top:1px solid var(--bor);display:none}
+.dtb.open{display:block}
+
+/* MOBILE */
+.mhdr{display:none}
+@media(max-width:768px){
+  .sb{display:none;position:fixed;inset:0;right:auto;width:82vw;z-index:50;overflow-y:auto}
+  .sb.open{display:flex}
+  .sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:49}
+  .sb-overlay.open{display:block}
+  .mhdr{display:flex;align-items:center;justify-content:space-between;padding:0 14px;height:50px;background:#fff;border-bottom:2px solid var(--red);flex-shrink:0}
+  .topbar{display:none}
+  .sg{grid-template-columns:1fr 1fr}
+  .g2{grid-template-columns:1fr}
+  .content{padding:12px;padding-bottom:72px}
+  /* Bottom nav bar */
+  .bnav{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--bor);z-index:40;height:60px;padding:0 4px;padding-bottom:env(safe-area-inset-bottom)}
+  .bni{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px;padding:6px 2px;border-radius:8px;transition:background .15s;border:none;background:none;color:var(--tx3)}
+  .bni.on{color:var(--navy)}
+  .bni svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+  .bni span{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  /* Fix two-column layout on mobile */
+  .case-grid{grid-template-columns:1fr!important}
+  .ni{padding:12px 14px;font-size:14px}
+}
+@media(min-width:769px){
+  .mhdr{display:none}
+  .bnav{display:none}
+}
+</style>
+</head>
+<body>
+<div class="sb-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+<div class="app">
+<aside class="sb" id="sb">
+  <div class="sb-logo">
+    <img id="sbLogo" src="" alt="HealthWatch">
+    <div class="sb-logo-sub">TPA Claims Platform</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="nl">Main</div>
+    <div class="ni on" data-p="dash" onclick="navTo('dash')"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</div>
+    <div class="ni" data-p="cases" onclick="navTo('cases')"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>Cases<span class="nb" id="nbc">0</span></div>
+    <div class="ni" data-p="urgent" onclick="navTo('urgent')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Urgent<span class="nb" id="nbu" style="display:none">!</span></div>
+    <div class="nl" style="margin-top:6px">Work</div>
+    <div class="ni" data-p="new" onclick="navTo('new')"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Case</div>
+    <div class="ni" data-p="docs" onclick="navTo('docs')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>Documents</div>
+    <div class="ni" data-p="fin" onclick="navTo('fin')"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Finance</div>
+    <div class="nl" style="margin-top:6px">System</div>
+    <div class="ni" data-p="set" onclick="navTo('set')"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</div>
+  </nav>
+  <div class="sb-foot">
+    <div class="su" onclick="navTo('set')">
+      <div class="av" id="uav">T</div>
+      <div><div style="font-size:12px;font-weight:600;color:#fff" id="unm">Team Member</div><div style="font-size:10px;color:rgba(255,255,255,.5)">TPA Coordinator</div></div>
+    </div>
+  </div>
+</aside>
+<div class="mn">
+  <div class="mhdr">
+    <button style="background:none;border:none;cursor:pointer;padding:4px" onclick="document.getElementById('sb').classList.toggle('open')">
+      <svg viewBox="0 0 24 24" width="20" height="20" stroke="#1a2a72" fill="none" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#1a2a72">HealthWatch</span>
+    <button class="tbtn pri" onclick="navTo('new')" style="padding:6px 10px;font-size:12px">+ New</button>
+  </div>
+  <div class="topbar">
+    <div><div class="tt" id="pgT">Dashboard</div><div class="ts" id="pgS">Overview</div></div>
+    <div class="tra" id="pgA"></div>
+  </div>
+  <div class="content" id="con"></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Login Screen -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:linear-gradient(135deg,#1a2a72 0%,#0f1d5a 60%,#e8231a 100%);z-index:100;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+  <div style="text-align:center;margin-bottom:40px">
+    <img id="login-logo" src="" alt="HealthWatch" style="filter:brightness(0) invert(1);height:60px;margin-bottom:16px;display:block;margin-left:auto;margin-right:auto">
+    <div style="font-size:28px;font-weight:700;color:#fff;margin-bottom:6px">HealthWatch TPA</div>
+    <div style="font-size:14px;color:rgba(255,255,255,.6)">Claims Management Platform</div>
+  </div>
+  <div style="background:rgba(255,255,255,.1);backdrop-filter:blur(20px);border-radius:16px;padding:32px 28px;width:100%;max-width:360px;border:1px solid rgba(255,255,255,.2)">
+    <div style="font-size:18px;font-weight:600;color:#fff;margin-bottom:8px">Welcome back</div>
+    <div style="font-size:13px;color:rgba(255,255,255,.6);margin-bottom:24px">Sign in to access your cases and team data</div>
+    <button id="login-btn" onclick="signInWithGoogle()" style="width:100%;padding:14px 20px;background:#fff;color:#1a2a72;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:transform .1s">
+      <svg viewBox="0 0 24 24" width="20" height="20"><path fill="#4285f4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34a853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#fbbc05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#ea4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Sign in with Google
+    </button>
+    <div style="font-size:11px;color:rgba(255,255,255,.4);margin-top:20px;text-align:center;line-height:1.6">
+      Secured by Google Authentication<br>
+      Only authorized team members can access
+    </div>
+  </div>
+  <div style="margin-top:24px;font-size:11px;color:rgba(255,255,255,.3)">
+    HEALTHWATCH-TPA &copy; 2025 — All data encrypted
+  </div>
+</div>
+<nav class="bnav" id="bnav">
+  <button class="bni on" data-p="dash" onclick="navTo('dash')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    <span>Dash</span>
+  </button>
+  <button class="bni" data-p="cases" onclick="navTo('cases')">
+    <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>
+    <span>Cases</span>
+  </button>
+  <button class="bni" data-p="new" onclick="navTo('new')" style="color:var(--red)">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    <span>New</span>
+  </button>
+  <button class="bni" data-p="fin" onclick="navTo('fin')">
+    <svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    <span>Finance</span>
+  </button>
+  <button class="bni" data-p="set" onclick="navTo('set')">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    <span>Settings</span>
+  </button>
+</nav>
+<script>
+// ── ONCLICK HELPERS (avoid quote nesting issues) ──
+
+function copyCaseEmail(){const b=G('f_eb');if(b)navigator.clipboard.writeText(b.value).then(()=>toast('Copied'));}
+
+function copyDoc(){navigator.clipboard.writeText(LDOC).then(()=>toast('Copied!'));}
+function downloadDoc(){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([LDOC],{type:'text/plain'}));a.download='document.txt';a.click();}
+
+function confirmClearAll(){if(confirm('Delete ALL data? Cannot be undone.'))clearAll();}
+
+function delFileNew(i){FILES.splice(i,1);renderFL_N();}
+function delFileCur(i){FILES.splice(i,1);updC(CURID,{filesData:FILES});renderFL_C(CURID);}
+function toggleDT(el){var b=el.parentElement.querySelector('.dtb');if(b)b.classList.toggle('open');}
+function goNew(){navTo('new')}
+function goDash(){navTo('dash')}
+function goCases(){renderCases()}
+function goOpenCritical(){renderCases(c=>c.priority==='critical')}
+function goOpenStatus(){renderCases(c=>['new','reviewing','pending'].includes(c.status))}
+function goMedical(){renderCases(c=>c.type==='medclaim')}
+
+
+// ══════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════
+const G = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmt = b => b>1048576 ? (b/1048576).toFixed(1)+' MB' : Math.round(b/1024)+' KB';
+const fdt = iso => { try{return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}catch(e){return ''} };
+const fdts = iso => { try{return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short'})}catch(e){return ''} };
+const fxt = n => {
+  const e = (n||'').split('.').pop().toLowerCase();
+  if(['jpg','jpeg','png','gif','webp','heic','bmp','tiff','tif'].includes(e)) return 'img';
+  if(e==='pdf') return 'pdf';
+  if(['doc','docx'].includes(e)) return 'doc';
+  if(['txt','csv','rtf','odt','xls','xlsx'].includes(e)) return 'txt';
+  return 'other';
+};
+const genId = () => 'C'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).substr(2,3).toUpperCase();
+const genCN = () => { const n=parseInt(localStorage.getItem('mp_cn')||'1000'); localStorage.setItem('mp_cn',n+1); return 'MAP-'+String(n+1).padStart(4,'0') };
+const b64AB = b64 => { const bin=atob(b64),buf=new ArrayBuffer(bin.length),v=new Uint8Array(buf); for(let i=0;i<bin.length;i++) v[i]=bin.charCodeAt(i); return buf };
+const ok = v => v && v!=='null' && v!==null && String(v).trim()!=='';
+
+function toast(m,dur) {
+  const t = G('toast');
+  t.textContent = m;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(()=>t.classList.remove('show'), dur||3000);
+}
+
+// ══════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════
+const MODELS = ['claude-sonnet-4-5','claude-opus-4-5','claude-haiku-4-5-20251001'];
+
+function getKey() { return (localStorage.getItem('mp_key')||'').trim(); }
+function getMod() {
+  const m = localStorage.getItem('mp_mod')||'';
+  return MODELS.includes(m) ? m : 'claude-sonnet-4-5';
+}
+function S() {
+  return {
+    key: getKey(),
+    mod: getMod(),
+    policy: localStorage.getItem('mp_pol')||'',
+    name: localStorage.getItem('mp_name')||'Team Member'
+  };
+}
+
+// ══════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════
+let CASES = [];
+try { CASES = JSON.parse(localStorage.getItem('mp_cases')||'[]') } catch(e) { CASES = []; }
+const save = () => {
+  // Always strip file data from case objects - stored separately
+  const lean = CASES.map(c => ({
+    ...c,
+    filesData: (c.filesData||[]).map(f => ({
+      name:f.name, size:f.size, type:f.type, ext:f.ext, _key:f._key||null
+    })),
+    eval: c.eval ? c.eval.substring(0, 3000) + (c.eval.length>3000?'\n[...]':'') : ''
+  }));
+
+  try {
+    localStorage.setItem('mp_cases', JSON.stringify(lean));
+  } catch(e) {
+    // Storage full - free up space then retry
+    freeStorage();
+    try {
+      localStorage.setItem('mp_cases', JSON.stringify(lean));
+    } catch(e2) {
+      // Last resort: save without eval
+      const bare = lean.map(c=>({...c, eval:''}));
+      try {
+        localStorage.setItem('mp_cases', JSON.stringify(bare));
+        toast('⚠ Storage full — evaluations cleared. Export cases to free space.');
+      } catch(e3) {
+        toast('⚠ Storage critically full — delete old cases to continue.');
+      }
+    }
+  }
+};
+
+// Free localStorage space by removing orphaned file keys and compressing
+function freeStorage() {
+  try {
+    // Remove file keys for deleted cases
+    const caseIds = new Set(CASES.map(c => c.id));
+    const validKeys = new Set();
+    CASES.forEach(c => {
+      (c.filesData||[]).forEach(f => { if(f._key) validKeys.add(f._key); });
+    });
+    const toDelete = [];
+    for(let i=0; i<localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if(k && (k.startsWith('fd_') || k.startsWith('fdtmp_'))) {
+        if(!validKeys.has(k)) toDelete.push(k);
+      }
+    }
+    toDelete.forEach(k => localStorage.removeItem(k));
+    if(toDelete.length) console.log('[Storage] Freed', toDelete.length, 'orphaned file keys');
+
+    // Also trim old invoice data for closed cases
+    CASES.filter(c=>c.status==='closed').forEach(c => {
+      localStorage.removeItem('invs_'+c.id);
+    });
+  } catch(e) { console.warn('freeStorage error:', e); }
+}
+
+// Call cleanup on startup
+function initStorage() {
+  freeStorage();
+  // Migrate any old cases that stored full data in filesData
+  let changed = false;
+  CASES.forEach(c => {
+    if(c.filesData) {
+      const cleaned = c.filesData.map(f => {
+        if(f.data && f.data.length > 100) {
+          // File has base64 data stored in case - move to separate key
+          const key = f._key || ('fd_'+c.id+'_'+Date.now()+'_'+Math.random().toString(36).slice(2,6));
+          try { localStorage.setItem(key, f.data); } catch(e) {}
+          changed = true;
+          return {name:f.name, size:f.size, type:f.type, ext:f.ext, _key:key};
+        }
+        return f;
+      });
+      c.filesData = cleaned;
+    }
+  });
+  if(changed) save();
+}
+const getC = id => CASES.find(c=>c.id===id) || null;
+const updC = (id,o) => {
+  const i = CASES.findIndex(c=>c.id===id);
+  if(i>=0) {
+    // Sync to Firestore in background
+    setTimeout(()=>{ if(typeof syncCaseToFirestore==='function') syncCaseToFirestore(CASES[i]); },100);
+    // Strip base64 data from any filesData in the update
+    if(o.filesData) {
+      o = {...o, filesData: o.filesData.map(f => ({
+        name:f.name, size:f.size, type:f.type, ext:f.ext, _key:f._key||null
+      }))};
+    }
+    Object.assign(CASES[i], o);
+    save();
+  }
+};
+const addTL = (id,action) => {
+  const c = getC(id); if(!c) return;
+  if(!c.timeline) c.timeline = [];
+  c.timeline.unshift({action, user:S().name, ts:new Date().toISOString()});
+  updC(id, {timeline:c.timeline});
+};
+
+let FILES = [];
+let CURID = null;
+
+// ══════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════
+function closeSidebar() {
+  const sb=document.getElementById('sb');
+  const ov=document.getElementById('sb-overlay');
+  if(sb) sb.classList.remove('open');
+  if(ov) ov.classList.remove('open');
+}
+
+function openSidebar() {
+  const sb=document.getElementById('sb');
+  const ov=document.getElementById('sb-overlay');
+  if(sb) sb.classList.add('open');
+  if(ov) ov.classList.add('open');
+}
+
+function navTo(page) {
+  closeSidebar();
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  document.querySelectorAll('.bni').forEach(n=>n.classList.remove('on'));
+  const el = document.querySelector('.ni[data-p="'+page+'"]');
+  if(el) el.classList.add('on');
+  const bel = document.querySelector('.bni[data-p="'+page+'"]');
+  if(bel) bel.classList.add('on');
+  const titles = {dash:'Dashboard',cases:'Cases',urgent:'Urgent Cases',new:'New Case',docs:'Documents',fin:'Finance',set:'Settings'};
+  G('pgT').textContent = titles[page]||page;
+  const pages = {dash:renderDash,cases:renderCases,urgent:renderUrgent,new:renderNew,docs:renderDocs,fin:renderFin,set:renderSet};
+  if(pages[page]) pages[page]();
+  updBadges();
+  if(window.innerWidth<=768) G('sb').classList.remove('open');
+}
+
+function setTop(title,sub,act) {
+  G('pgT').textContent = title;
+  G('pgS').textContent = sub||'';
+  G('pgA').innerHTML = act||'';
+}
+
+function updBadges() {
+  G('nbc').textContent = CASES.length;
+  const u = CASES.filter(c=>c.priority==='critical'&&c.status!=='closed').length;
+  G('nbu').style.display = u ? '' : 'none';
+  const s = S();
+  G('unm').textContent = s.name;
+  G('uav').textContent = (s.name||'T')[0].toUpperCase();
+}
+
+// ══════════════════════════════════════════════
+// BADGES
+// ══════════════════════════════════════════════
+function sBadge(s) {
+  const m = {new:'bbl New',reviewing:'bpu Reviewing',pending:'bam Pending',approved:'bgr Approved',declined:'brd Declined',closed:'bgy Closed'};
+  const [c,l] = (m[s]||'bbl New').split(' ');
+  return '<span class="badge '+c+'">'+l+'</span>';
+}
+function tBadge(t) { return t==='medclaim'?'<span class="badge bbl">Medical</span>':'<span class="badge bpu">Non-Medical</span>'; }
+function pBadge(p) {
+  const m = {critical:'pcr Critical',high:'phi High',medium:'pme Medium',routine:'pro Routine'};
+  const [c,l] = (m[p]||'pro Routine').split(' ');
+  return '<span class="pr '+c+'"><span class="pd"></span>'+l+'</span>';
+}
+function pyBadge(p) {
+  const m = {pending:'bam Pending',processing:'bbl Processing',paid:'bgr Paid',disputed:'brd Disputed'};
+  const [c,l] = (m[p]||'bam Pending').split(' ');
+  return '<span class="badge '+c+'">'+l+'</span>';
+}
+
+// ══════════════════════════════════════════════
+// API CALL — core function used by ALL AI features
+// ══════════════════════════════════════════════
+async function apiCall(messages, systemPrompt, maxTokens) {
+  const key = getKey();
+  if(!key) {
+    toast('No API key! Go to Settings and save your key first.');
+    throw new Error('No API key configured');
+  }
+  const mod = getMod();
+  const body = { model: mod, max_tokens: maxTokens||1500, messages: messages };
+  if(systemPrompt) body.system = systemPrompt;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+  if(!res.ok) {
+    const msg = (data.error && data.error.message) || 'HTTP '+res.status;
+    throw new Error(msg);
+  }
+  return (data.content||[]).map(b=>b.text||'').join('');
+}
+
+// Streaming API call - renders text word by word into a DOM element
+async function apiCallStream(messages, systemPrompt, maxTokens, onChunk) {
+  const key = getKey();
+  if(!key) throw new Error('No API key configured');
+  const mod = getMod();
+
+  // Try streaming first, fall back to regular if not supported
+  if(typeof ReadableStream !== 'undefined' && typeof TextDecoder !== 'undefined') {
+    try {
+      const body = { model: mod, max_tokens: maxTokens||1500, messages: messages, stream: true };
+      if(systemPrompt) body.system = systemPrompt;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify(body)
+      });
+
+      if(!res.ok) {
+        const err = await res.json().catch(()=>({}));
+        throw new Error((err.error&&err.error.message)||'HTTP '+res.status);
+      }
+
+      if(!res.body) throw new Error('Streaming not supported');
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = '';
+
+      while(true) {
+        const {done, value} = await reader.read();
+        if(done) break;
+        const chunk = decoder.decode(value, {stream:true});
+        const lines = chunk.split('\n');
+        for(const line of lines) {
+          if(!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if(data === '[DONE]') continue;
+          try {
+            const parsed = JSON.parse(data);
+            if(parsed.type === 'content_block_delta' && parsed.delta && parsed.delta.text) {
+              fullText += parsed.delta.text;
+              if(onChunk) onChunk(parsed.delta.text, fullText);
+            }
+          } catch(e) {}
+        }
+      }
+      return fullText;
+    } catch(streamErr) {
+      console.warn('[Stream] Failed, falling back to regular fetch:', streamErr.message);
+      // Fall through to non-streaming below
+    }
+  }
+
+  // Non-streaming fallback
+  console.log('[Stream] Using non-streaming fetch');
+  const body2 = { model: mod, max_tokens: maxTokens||1500, messages: messages };
+  if(systemPrompt) body2.system = systemPrompt;
+  const res2 = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body2)
+  });
+  const data2 = await res2.json();
+  if(!res2.ok) throw new Error((data2.error&&data2.error.message)||'HTTP '+res2.status);
+  const result = (data2.content||[]).map(b=>b.text||'').join('');
+  if(onChunk) onChunk(result, result); // single chunk callback
+  return result;
+}
+
+// ══════════════════════════════════════════════
+// EXTRACT PATIENT INFO FROM DOCUMENT
+// ══════════════════════════════════════════════
+const EXTRACT_PROMPT = 'You are a multilingual medical document reader for insurance claims. Extract ALL information from the attached document. RESPOND ONLY with a raw JSON object - no markdown, no explanation, no backticks. Use null for missing fields. Translate everything to English.\n\nJSON format: {"document_type":"type","document_language":"language","handwritten":"yes or no","patient":"full name or null","dob":"DD/MM/YYYY or null","age":"or null","gender":"Male or Female or null","nationality":"or null","dol":"DD/MM/YYYY or null","country":"or null","hospital":"or null","doctor":"or null","insurer":"or null","ref":"or null","diagnosis":"in English or null","secondary_diagnosis":"in English or null","symptoms":"in English or null","treatment":"in English or null","medications":"in English or null","history":"in English or null","prognosis":"in English or null","additional_info":"other info in English or null"}';
+
+async function extractFromFile(fd) {
+  let content = [];
+
+  if(fd.ext === 'img') {
+    const dataUrl = fd.data;
+    let mediaType = 'image/jpeg';
+    if(dataUrl.startsWith('data:image/png')) mediaType = 'image/png';
+    else if(dataUrl.startsWith('data:image/gif')) mediaType = 'image/gif';
+    else if(dataUrl.startsWith('data:image/webp')) mediaType = 'image/webp';
+    const b64 = dataUrl.indexOf(',') > -1 ? dataUrl.substring(dataUrl.indexOf(',')+1) : dataUrl;
+    content.push({ type:'image', source:{ type:'base64', media_type:mediaType, data:b64 } });
+  } else if(fd.ext === 'pdf') {
+    content.push({ type:'document', source:{ type:'base64', media_type:'application/pdf', data:fd.data.split(',')[1] }, title:fd.name });
+  } else if(fd.ext === 'doc') {
+    try {
+      const ab = b64AB(fd.data.split(',')[1]);
+      const r = await mammoth.extractRawText({arrayBuffer:ab});
+      if(!r.value || !r.value.trim()) { toast('Word doc appears empty'); return null; }
+      content.push({ type:'text', text:'Document: '+fd.name+'\n\n'+r.value.trim() });
+    } catch(e) { toast('Cannot read Word doc: '+e.message); return null; }
+  } else if(fd.ext === 'txt') {
+    try {
+      let text = '';
+      if(fd.data.includes(';base64,')) { text = atob(fd.data.split(';base64,')[1]); }
+      else if(fd.data.includes(',')) { text = decodeURIComponent(fd.data.split(',').slice(1).join(',')); }
+      if(!text.trim()) return null;
+      if(text.length > 8000) text = text.substring(0, 8000);
+      content.push({ type:'text', text:'Document: '+fd.name+'\n\n'+text.trim() });
+    } catch(e) { return null; }
+  } else {
+    return null;
+  }
+
+  content.push({ type:'text', text:EXTRACT_PROMPT });
+
+  try {
+    const raw = await apiCall([{role:'user', content:content}], null, 1500);
+    const cleaned = raw.trim().replace(/^```json\s*/,'').replace(/^```/,'').replace(/```$/,'').trim();
+    const parsed = JSON.parse(cleaned);
+    console.log('[Extract] Success:', JSON.stringify(parsed).substring(0,200));
+    return parsed;
+  } catch(e) {
+    console.error('[Extract] Failed:', e.message);
+    toast('Extraction failed: '+e.message);
+    return null;
+  }
+}
+
+function buildDescBlock(info) {
+  const lines = [];
+  const dtype = ok(info.document_type) ? info.document_type.toUpperCase() : 'DOCUMENT';
+  const lang = ok(info.document_language) ? info.document_language : '';
+  const hw = info.handwritten === 'yes' ? ' (handwritten)' : '';
+  const langNote = (lang && lang.toLowerCase() !== 'english') ? ' [from '+lang+']' : '';
+  lines.push('--- '+dtype+hw+langNote+' ---');
+  const fields = [
+    ['DIAGNOSIS',info.diagnosis], ['SECONDARY',info.secondary_diagnosis],
+    ['SYMPTOMS',info.symptoms], ['TREATMENT',info.treatment],
+    ['MEDICATIONS',info.medications], ['HISTORY',info.history],
+    ['PROGNOSIS',info.prognosis], ['HOSPITAL',info.hospital],
+    ['DOCTOR',info.doctor], ['DOB',info.dob], ['AGE',info.age],
+    ['GENDER',info.gender], ['NATIONALITY',info.nationality],
+    ['PASSPORT',info.passport], ['INFO',info.additional_info]
+  ];
+  fields.forEach(([k,v]) => { if(ok(v)) lines.push(k+': '+v); });
+  return {lines, dtype, lang, hw};
+}
+
+// Fill new case form from extracted info
+async function extractAndFillNew(fd) {
+  const s = S();
+  if(!s.key) { toast('Add your API key in Settings first!'); return; }
+  setExtractStatus('Reading '+fd.name+'...', 'run');
+  const info = await extractFromFile(fd);
+  if(!info) { setExtractStatus('Could not read: '+fd.name, 'err'); return; }
+
+  const fill = (elId, val) => { const el=G(elId); if(el && ok(val) && !el.value.trim()) el.value=val; };
+  fill('n_p', info.patient);
+  fill('n_c', info.country);
+  fill('n_i', info.insurer);
+  fill('n_r', info.ref);
+  if(ok(info.dol)) {
+    const dp = info.dol.split('/');
+    const dv = dp.length===3 ? dp[2]+'-'+dp[1]+'-'+dp[0] : info.dol;
+    const ed = G('n_d'); if(ed && !ed.value) ed.value = dv;
+  }
+  const {lines, dtype, lang, hw} = buildDescBlock(info);
+  if(lines.length > 1) {
+    const el = G('n_de');
+    if(el) {
+      const ex = el.value.trim();
+      el.value = ex ? ex+'\n\n'+lines.join('\n') : lines.join('\n');
+    }
+  }
+  const langNote = lang && lang.toLowerCase()!=='english' ? ' — translated from '+lang : '';
+  setExtractStatus('Done: '+dtype+hw+langNote+' — fields filled!', 'done');
+  toast('Extracted from '+fd.name);
+}
+
+function setExtractStatus(msg, state) {
+  const el = G('extractStatus');
+  if(!el) return;
+  el.style.display = 'flex';
+  el.className = 'evs ev'+state.charAt(0);
+  const ic = state==='run' ? '<div class="spin"></div>' : state==='done' ? '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>';
+  el.innerHTML = ic+'&nbsp;'+esc(msg);
+}
+
+// Merge extracted info into open case
+async function extractAndMerge(fd, caseId) {
+  const s = S();
+  if(!s.key) { toast('Add your API key in Settings first!'); return; }
+  setEvSt('run', 'Reading '+fd.name+'...');
+  const info = await extractFromFile(fd);
+  if(!info) { setEvSt('idle','Ready — press Run Evaluation'); return; }
+
+  const c = getC(caseId); if(!c) return;
+  const updates = {};
+
+  const fill = (field, elId, val) => {
+    if(ok(val) && !(c[field] && c[field].trim())) {
+      updates[field] = val;
+      const el = G(elId); if(el) el.value = val;
+    }
+  };
+  fill('patient','f_p',info.patient);
+  fill('country','f_c',info.country);
+  fill('insurer','f_i',info.insurer);
+  fill('ref','f_r',info.ref);
+
+  if(ok(info.dol) && !c.dol) {
+    const dp = info.dol.split('/');
+    const dv = dp.length===3 ? dp[2]+'-'+dp[1]+'-'+dp[0] : info.dol;
+    updates.dol = dv;
+    const ed = G('f_d'); if(ed) ed.value = dv;
+  }
+
+  const {lines, dtype, lang, hw} = buildDescBlock(info);
+  if(lines.length > 1) {
+    const ex = (c.desc||'').trim();
+    const nd = ex ? ex+'\n\n'+lines.join('\n') : lines.join('\n');
+    updates.desc = nd;
+    const el = G('f_desc'); if(el) el.value = nd;
+  }
+
+  if(ok(info.patient) && !c.patient) {
+    updates.patient = info.patient;
+    const cdn = G('cdn'); if(cdn) cdn.textContent = info.patient;
+  }
+
+  if(Object.keys(updates).length) {
+    updC(caseId, updates);
+    addTL(caseId, 'Document read: '+fd.name+' ('+dtype+hw+')');
+    const tb = G('tlB'); if(tb) tb.innerHTML = renderTL(getC(caseId).timeline||[]);
+  }
+
+  const langNote = lang && lang.toLowerCase()!=='english' ? ' (from '+lang+')' : '';
+  toast('Extracted: '+dtype+hw+langNote);
+  setEvSt('idle','Ready — press Run Evaluation');
+}
+
+// ══════════════════════════════════════════════
+// EVALUATION
+// ══════════════════════════════════════════════
+const SYS_EVAL = 'You are an expert multilingual insurance case evaluator for a TPA company. Always respond in English. Be concise — use short clear sentences. You MUST always reach a DECISION. Structure your response in exactly 8 numbered sections, each 2-4 lines maximum: 1. POLICY WORDING 2. COVERAGE DATES 3. EVENT DETAILS 4. DATE OF LOSS 5. DIAGNOSIS 6. EXCLUSIONS 7. MISSING INFORMATION 8. DECISION. The DECISION section is MANDATORY — you must always write it even if information is incomplete. Format the decision line exactly as: DECISION: APPROVED or DECISION: PARTIALLY APPROVED or DECISION: DECLINED — followed by the amount in EUR and the main reason in one sentence. Never stop before reaching the DECISION section.';
+
+
+// Auto-extract financial info silently after evaluation
+async function autoExtractFinance(caseId, files) {
+  console.log('[AutoFinance] Extracting from', files.length, 'files');
+  let extracted = [];
+  for(const f of files) {
+    try {
+      const data = await extractInvoiceData(f);
+      if(data && (data.total || (data.line_items && data.line_items.length))) {
+        const cur = data.currency ? data.currency.toUpperCase() : null;
+        const rawTotal = parseFloat(data.total) || 0;
+        const totalEUR = cur ? toEUR(rawTotal, cur) : null;
+        extracted.push({
+          filename: f.name,
+          data,
+          cur: cur || '?',
+          rawTotal,
+          totalEUR: totalEUR || 0,
+          currencyKnown: !!cur,
+          extracted_at: new Date().toISOString()
+        });
+      }
+    } catch(e) { console.warn('[AutoFinance] skip:', f.name, e.message); }
+  }
+  if(!extracted.length) return;
+
+  saveInvoices(caseId, extracted);
+  const total = extracted.reduce((s,e)=>s+e.totalEUR, 0);
+  // Update amount claimed if not already set
+  const c = getC(caseId);
+  if(!c.amountClaimed || parseFloat(c.amountClaimed)===0) {
+    updC(caseId, {amountClaimed: total.toFixed(2)});
+    const el = G('f_ac'); if(el) el.value = total.toFixed(2);
+  }
+  // Show results in the financial extract area
+  const statusEl = G('invExtStatus');
+  if(statusEl) {
+    statusEl.style.display = 'flex';
+    statusEl.className = 'evs evd';
+    statusEl.innerHTML = '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Auto-extracted: '+extracted.length+' document(s) — '+fEUR(total);
+  }
+  renderCaseInvoices(caseId, extracted);
+  console.log('[AutoFinance] Done:', extracted.length, 'docs, total:', fEUR(total));
+}
+
+async function runEval(caseId) {
+  console.log('[runEval] called with caseId:', caseId);
+  const key = getKey();
+  if(!key) {
+    toast('No API key! Go to Settings → enter your key → tap Save Settings');
+    setEvSt('err','No API key — go to Settings first');
+    return;
+  }
+  console.log('[runEval] key ok, model:', getMod());
+
+  // Read live form values
+  const liveVals = {
+    patient: G('f_p') ? G('f_p').value.trim() : '',
+    desc: G('f_desc') ? G('f_desc').value.trim() : '',
+    dol: G('f_d') ? G('f_d').value : '',
+    country: G('f_c') ? G('f_c').value.trim() : '',
+    insurer: G('f_i') ? G('f_i').value.trim() : '',
+    amountClaimed: G('f_ac') ? G('f_ac').value : '',
+    ref: G('f_r') ? G('f_r').value.trim() : ''
+  };
+
+  // Save live values
+  const toSave = {};
+  Object.entries(liveVals).forEach(([k,v]) => { if(v) toSave[k]=v; });
+  if(Object.keys(toSave).length) updC(caseId, toSave);
+
+  const c = getC(caseId);
+  if(!c) { toast('Case not found'); return; }
+
+  const btn = G('bRun'); if(btn) btn.disabled = true;
+  setEvSt('run','Connecting to Claude...');
+
+  const nl = '\n';
+  let sys = SYS_EVAL;
+  const policy = S().policy;
+  if(policy && policy.trim()) {
+    sys = '=== INSURANCE POLICY ===' + nl + policy.trim() + nl + '=== END ===' + nl + nl + sys;
+  }
+
+  const patient = liveVals.patient || c.patient || 'Not provided';
+  const desc = liveVals.desc || c.desc || 'Not provided';
+  const dol = liveVals.dol || c.dol || 'Not provided';
+  const country = liveVals.country || c.country || 'Not provided';
+  const insurer = liveVals.insurer || c.insurer || 'Not provided';
+  const claimed = liveVals.amountClaimed || c.amountClaimed || 'Not provided';
+
+  const txt = 'CASE: '+(c.caseNum||'-')+nl+'TYPE: '+(c.type==='medclaim'?'MEDICAL CLAIM':'NON-MEDICAL CLAIM')+nl+'PATIENT: '+patient+nl+'REF: '+(liveVals.ref||c.ref||'-')+nl+'DATE OF LOSS: '+dol+nl+'COUNTRY: '+country+nl+'INSURER: '+insurer+nl+'AMOUNT CLAIMED: '+claimed+nl+nl+'DESCRIPTION:'+nl+desc+nl+nl+'Please evaluate completely covering all 8 sections.';
+
+  const msgContent = [];
+  FILES.forEach(f => {
+    if(f.data && f.ext==='img') {
+    // Extract media type from data URL for accuracy
+    const dataUrl = f.data;
+    let mtype = 'image/jpeg'; // safe default
+    if(dataUrl.startsWith('data:image/png')) mtype = 'image/png';
+    else if(dataUrl.startsWith('data:image/gif')) mtype = 'image/gif';
+    else if(dataUrl.startsWith('data:image/webp')) mtype = 'image/webp';
+    // Get base64 data (everything after first comma)
+    const b64 = dataUrl.indexOf(',') > -1 ? dataUrl.substring(dataUrl.indexOf(',')+1) : dataUrl;
+    msgContent.push({type:'image',source:{type:'base64',media_type:mtype,data:b64}});
+  }
+    else if(f.data && f.ext==='pdf') msgContent.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:f.data.split(',')[1]},title:f.name});
+  });
+  msgContent.push({type:'text', text:txt});
+
+  const steps = ['Reading policy...','Checking coverage...','Verifying dates...','Checking exclusions...','Writing decision...'];
+  let si = 0;
+  const iv = setInterval(()=>{ si=Math.min(si+1,steps.length-1); setEvSt('run',steps[si]); }, 3000);
+
+  try {
+    console.log('[runEval] streaming request, blocks:', msgContent.length);
+    
+    // Use streaming so text appears immediately
+    const erDiv = G('evR');
+    if(erDiv) erDiv.innerHTML = '<div class="er" id="evStream" style="white-space:pre-wrap;font-size:13px;line-height:1.7;color:var(--tx2)"></div>';
+    const streamEl = G('evStream');
+    
+    let fullResult = '';
+    await apiCallStream(
+      [{role:'user', content:msgContent}],
+      sys,
+      4000,
+      (chunk, full) => {
+        fullResult = full;
+        clearInterval(iv);
+        if(streamEl) streamEl.textContent = full;
+        setEvSt('run', 'Writing decision...');
+      }
+    );
+    
+    clearInterval(iv);
+    
+    // If evaluation cut off before DECISION, append a quick decision call
+    let finalResult = fullResult;
+    if(fullResult && !/DECISION\s*:/i.test(fullResult)) {
+      setEvSt('run', 'Getting decision...');
+      try {
+        const decisionPrompt = 'Based on this insurance evaluation, provide ONLY the final decision line. Format exactly as: DECISION: APPROVED or DECISION: PARTIALLY APPROVED or DECISION: DECLINED — with the amount in EUR and one sentence reason.\n\nEvaluation so far:\n'+fullResult.slice(-800);
+        const decision = await apiCall([{role:'user', content:decisionPrompt}], 'You are an insurance evaluator. Respond with only the DECISION line.', 200);
+        if(decision && decision.trim()) {
+          finalResult = fullResult + '\n\n' + decision.trim();
+        }
+      } catch(e) { console.warn('Decision follow-up failed:', e.message); }
+    }
+    
+    updC(caseId, {eval:finalResult, status:'reviewing'});
+    addTL(caseId, 'AI evaluation completed');
+    // Render with proper formatting
+    if(erDiv) erDiv.innerHTML = renderEvalTxt(finalResult);
+    setEvSt('done', 'Done — '+new Date().toLocaleTimeString());
+    const cb = G('cbdg'); if(cb) { const cc=getC(caseId); cb.innerHTML=tBadge(cc.type)+' '+pBadge(cc.priority)+' '+sBadge(cc.status); }
+    const tb = G('tlB'); if(tb) tb.innerHTML = renderTL(getC(caseId).timeline||[]);
+    toast('Evaluation complete!');
+
+    // ── Auto-extract financial info from documents in background ──
+    const hasFiles = FILES.filter(f=>f.data&&['img','pdf','doc','txt'].includes(f.ext));
+    if(hasFiles.length) {
+      setEvSt('run', 'Extracting financial info...');
+      autoExtractFinance(caseId, hasFiles).then(()=>{
+        setEvSt('done', 'Evaluation + finances done — '+new Date().toLocaleTimeString());
+      }).catch(e=>{ console.warn('Finance auto-extract failed:', e.message); });
+    }
+  } catch(err) {
+    clearInterval(iv);
+    console.error('[runEval] error:', err);
+    setEvSt('err', 'Error: '+err.message);
+    toast('Error: '+err.message);
+  }
+  if(btn) btn.disabled = false;
+}
+
+function clearEval(id) {
+  updC(id,{eval:'',status:'new'});
+  const er = G('evR'); if(er) er.innerHTML = '';
+  setEvSt('idle','Ready — press Run Evaluation');
+}
+
+function setEvSt(state, msg) {
+  const el = G('evSt'); if(!el) return;
+  const classes = {idle:'evi',run:'evr',done:'evd',err:'eve'};
+  el.className = 'evs '+(classes[state]||'evi');
+  const icons = {
+    idle:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4"/></svg>',
+    run:'<div class="spin"></div>',
+    done:'<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>',
+    err:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>'
+  };
+  el.innerHTML = (icons[state]||icons.idle)+'&nbsp;'+esc(msg);
+}
+
+function renderEvalTxt(txt) {
+  if(!txt) return '';
+
+  // ── Detect overall decision from full text ──
+  const upper = txt.toUpperCase();
+  let verdict = null;
+  if(/\bDECLINED\b|\bDENIED\b|\bNOT COVERED\b|\bREJECTED\b/.test(upper)) verdict = 'declined';
+  else if(/\bPARTIALLY APPROVED\b|\bPARTIAL APPROVAL\b|\bPARTIALLY COVERED\b/.test(upper)) verdict = 'partial';
+  else if(/\bAPPROVED\b|\bFULLY COVERED\b|\bFULL APPROVAL\b/.test(upper)) verdict = 'approved';
+
+  // ── Verdict banner at top ──
+  const banners = {
+    approved: '<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-radius:10px;background:#d1fae5;border:2px solid #10b981;margin-bottom:16px"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg><div><div style="font-size:17px;font-weight:700;color:#065f46">APPROVED</div><div style="font-size:12px;color:#059669;margin-top:2px">Claim is covered under the policy</div></div></div>',
+    partial:  '<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-radius:10px;background:#fef3c7;border:2px solid #f59e0b;margin-bottom:16px"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div><div style="font-size:17px;font-weight:700;color:#92400e">PARTIALLY APPROVED</div><div style="font-size:12px;color:#d97706;margin-top:2px">Claim is partially covered — see details below</div></div></div>',
+    declined: '<div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-radius:10px;background:#fee2e2;border:2px solid #e8231a;margin-bottom:16px"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#e8231a" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><div><div style="font-size:17px;font-weight:700;color:#991b1b">DECLINED</div><div style="font-size:12px;color:#e8231a;margin-top:2px">Claim is not covered under the policy</div></div></div>'
+  };
+
+  let h = '<div class="er">';
+  if(verdict && banners[verdict]) h += banners[verdict];
+
+  const lines = txt.split('\n');
+  lines.forEach(l => {
+    const lt = l.trim();
+    if(!lt) { h += '<div style="height:6px"></div>'; return; }
+
+    // Section headers
+    if(/^#{1,3}\s/.test(l) || (/^(\d+\.\s+)?[A-Z][A-Z\s\/&:()\u2014-]{3,}$/.test(lt) && lt.length<70)) {
+      h += '<div class="esec">'+esc(lt.replace(/^#+\s*/,'').replace(/:$/,''))+'</div>';
+      return;
+    }
+
+    // Inline decision lines — colour them
+    const lup = lt.toUpperCase();
+    if(/\b(DECISION|CONCLUSION|VERDICT|RESULT)\b/.test(lup) || 
+       /\b(APPROVED|DECLINED|DENIED|PARTIAL|COVERED|NOT COVERED)\b/.test(lup)) {
+      let cls = 'eap'; // default green
+      if(/\bDECLIN|\bDENI|\bNOT COVERED|\bREJECT/.test(lup)) cls = 'edc';
+      else if(/\bPARTIAL/.test(lup)) cls = 'epa';
+      h += '<div class="edec '+cls+'" style="margin:8px 0">'+esc(lt)+'</div>';
+      return;
+    }
+
+    // Amounts — highlight
+    if(/[€$£]|\bEUR\b|\bUSD\b|\bGBP\b/.test(l) && /\d/.test(l)) {
+      h += '<div style="margin-bottom:4px;padding:4px 8px;background:rgba(26,42,114,.05);border-left:3px solid var(--navy);border-radius:0 4px 4px 0;font-weight:500">'+esc(lt)+'</div>';
+      return;
+    }
+
+    // Bullet points
+    if(/^[-•*]/.test(lt) || /^\d+\./.test(lt)) {
+      h += '<div style="padding-left:16px;margin-bottom:3px;position:relative"><span style="position:absolute;left:4px;color:var(--navy)">•</span>'+esc(lt.replace(/^[-•*\d.]+\s*/,''))+'</div>';
+      return;
+    }
+
+    // Normal text
+    h += '<div style="margin-bottom:4px">'+esc(lt)+'</div>';
+  });
+
+  return h+'</div>';
+}
+
+// ══════════════════════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════════════════════
+function renderFL_N() {
+  const el = G('fl_n'); if(!el) return;
+  let h = '';
+  FILES.forEach((f,i) => {
+    h += '<div class="fi">';
+    h += '<div class="fic f'+f.ext+'">'+f.ext.toUpperCase().slice(0,3)+'</div>';
+    h += '<div style="flex:1;min-width:0"><div class="fn">'+esc(f.name)+'</div><div class="fsz">'+fmt(f.size)+'</div></div>';
+    h += '<button class="fdel" onclick="delFileNew('+i+')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+    h += '</div>';
+  });
+  el.innerHTML = h;
+}
+
+function renderFL_C(caseId) {
+  const el = G('fl_c'); if(!el) return;
+  let h = '';
+  FILES.forEach((f,i) => {
+    h += '<div class="fi">';
+    h += '<div class="fic f'+f.ext+'">'+f.ext.toUpperCase().slice(0,3)+'</div>';
+    h += '<div style="flex:1;min-width:0"><div class="fn">'+esc(f.name)+'</div><div class="fsz">'+fmt(f.size)+'</div></div>';
+    h += '<button class="fdel" onclick="delFileCur('+i+')"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+    h += '</div>';
+  });
+  el.innerHTML = h;
+}
+
+function wireDZ(dzId, fiId, onFiles) {
+  const dz = G(dzId), fi = G(fiId); if(!fi) return;
+  if(dz) {
+    dz.ondragover = e=>{e.preventDefault();dz.classList.add('ov')};
+    dz.ondragleave = ()=>dz.classList.remove('ov');
+    dz.ondrop = e=>{e.preventDefault();dz.classList.remove('ov');onFiles(Array.from(e.dataTransfer.files))};
+    dz.onclick = ()=>fi.click();
+  }
+  fi.onchange = function(){onFiles(Array.from(this.files));this.value='';};
+}
+
+function addFilesNew(list) {
+  list.forEach(f => {
+    const r = new FileReader();
+    r.onload = e => {
+      const fd = {name:f.name, size:f.size, type:f.type, ext:fxt(f.name), data:e.target.result};
+      const tempKey = 'fdtmp_'+Date.now()+'_'+FILES.length;
+      try { localStorage.setItem(tempKey, fd.data); fd._key = tempKey; } catch(e2) {}
+      FILES.push(fd); renderFL_N();
+      if(['pdf','img','doc','txt'].includes(fd.ext)) extractAndFillNew(fd);
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+function addFiles(list, caseId) {
+  list.forEach(f => {
+    const r = new FileReader();
+    r.onload = e => {
+      const fd = {name:f.name, size:f.size, type:f.type, ext:fxt(f.name), data:e.target.result};
+      FILES.push(fd);
+      // Store file data separately (not inside case object to avoid localStorage bloat)
+      // Only store if < 800KB to stay within localStorage limits
+      const fileKey = 'fd_'+caseId+'_'+FILES.length;
+      try {
+        if(fd.data && fd.data.length < 1500000) {
+          localStorage.setItem(fileKey, fd.data);
+          fd._key = fileKey;
+        } else {
+          toast('Large file (>1MB) — available this session only');
+        }
+      } catch(e) {
+        freeStorage();
+        try {
+          localStorage.setItem(fileKey, fd.data);
+          fd._key = fileKey;
+        } catch(e2) {
+          console.warn('Storage full:', f.name);
+          toast('Storage full — file available this session only');
+        }
+      }
+      // Save metadata only (no base64 data) to case
+      const meta = {name:f.name, size:f.size, type:f.type, ext:fd.ext, _key:fd._key||null};
+      const metas = (getC(caseId) && getC(caseId).filesData || []).map(m=>m.data?{name:m.name,size:m.size,type:m.type,ext:m.ext,_key:m._key||null}:m);
+      metas.push(meta);
+      updC(caseId, {filesData: metas});
+      renderFL_C(caseId);
+      if(['pdf','img','doc','txt'].includes(fd.ext)) extractAndMerge(fd, caseId);
+    };
+    r.readAsDataURL(f);
+  });
+}
+
+// ══════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════
+function renderDash() {
+  setTop('Dashboard','Overview of all cases','<button class="tbtn pri" onclick="goNew()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Case</button>');
+  const total=CASES.length, open=CASES.filter(c=>['new','reviewing','pending'].includes(c.status)).length;
+  const appr=CASES.filter(c=>c.status==='approved').length, crit=CASES.filter(c=>c.priority==='critical'&&c.status!=='closed').length;
+  const tClaim=CASES.reduce((s,c)=>s+(parseFloat(c.amountClaimed)||0),0);
+  const tAppr=CASES.reduce((s,c)=>s+(parseFloat(c.amountApproved)||0),0);
+
+  let html = '<div class="sg">';
+  html += '<div class="sc bl"><div class="sl">Total Cases</div><div class="sv">'+total+'</div><div class="ss">'+open+' open</div></div>';
+  html += '<div class="sc gr"><div class="sl">Approved</div><div class="sv">'+appr+'</div><div class="ss">'+(total?Math.round(appr/total*100):0)+'% rate</div></div>';
+  html += '<div class="sc rd"><div class="sl">Critical</div><div class="sv">'+crit+'</div><div class="ss">Urgent action</div></div>';
+  html += '<div class="sc am"><div class="sl">Total Claimed</div><div class="sv">€'+tClaim.toLocaleString()+'</div><div class="ss">€'+tAppr.toLocaleString()+' approved</div></div>';
+  html += '</div>';
+  html += '<div class="case-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+  html += '<div class="card"><div class="ct">Case Status</div><div class="cw"><canvas id="csc"></canvas></div></div>';
+  html += '<div class="card"><div class="ct">Monthly Cases</div><div class="cw"><canvas id="cmc"></canvas></div></div>';
+  html += '</div>';
+  html += '<div class="card">';
+  html += '<div class="ct">Recent Cases</div>';
+  if(CASES.length) {
+    html += '<table><thead><tr><th>Case</th><th>Patient</th><th>Type</th><th>Priority</th><th>Status</th><th>Claimed</th><th>Date</th></tr></thead><tbody>';
+    CASES.slice(0,8).forEach(c => {
+      html += '<tr onclick="openCase(this.dataset.id)" data-id="'+c.id+'">' ;
+      html += '<td class="tmo">'+esc(c.caseNum||'—')+'</td>';
+      html += '<td class="tm">'+esc(c.patient||'—')+'</td>';
+      html += '<td>'+tBadge(c.type)+'</td>';
+      html += '<td>'+pBadge(c.priority)+'</td>';
+      html += '<td>'+sBadge(c.status)+'</td>';
+      html += '<td class="tmo">€'+(parseFloat(c.amountClaimed)||0).toLocaleString()+'</td>';
+      html += '<td class="tmo">'+fdts(c.created)+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  } else {
+    html += '<div style="text-align:center;padding:40px;color:var(--tx3)"><p style="margin-bottom:12px">No cases yet. Create your first case.</p><button class="btn bp" onclick="goNew()">+ New Case</button></div>';
+  }
+  html += '</div>';
+  G('con').innerHTML = html;
+
+  setTimeout(()=>{
+    const sc = G('csc');
+    if(sc && window.Chart) {
+      new Chart(sc,{type:'doughnut',data:{labels:['New','Reviewing','Pending','Approved','Declined','Closed'],datasets:[{data:['new','reviewing','pending','approved','declined','closed'].map(s=>CASES.filter(c=>c.status===s).length),backgroundColor:['#1a2a72','#7c3aed','#f59e0b','#10b981','#e8231a','#8090b0'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#8090b0',font:{size:11},padding:8}}}}});
+    }
+    const mc = G('cmc');
+    if(mc && window.Chart) {
+      const months=[],counts=[];
+      for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push(d.toLocaleString('en',{month:'short'}));const y=d.getFullYear(),m=d.getMonth();counts.push(CASES.filter(c=>{const cd=new Date(c.created);return cd.getFullYear()===y&&cd.getMonth()===m}).length);}
+      new Chart(mc,{type:'bar',data:{labels:months,datasets:[{data:counts,backgroundColor:'rgba(26,42,114,.6)',borderRadius:4,hoverBackgroundColor:'#1a2a72'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#8090b0'}},y:{grid:{color:'rgba(220,227,236,.8)'},ticks:{color:'#8090b0',stepSize:1}}}}});
+    }
+  },100);
+}
+
+// ══════════════════════════════════════════════
+// CASES LIST
+// ══════════════════════════════════════════════
+function renderCases(filter) {
+  setTop('All Cases','Manage all insurance cases','<button class="tbtn pri" onclick="goNew()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New Case</button>');
+  const list = filter ? CASES.filter(filter) : CASES;
+  let html = '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  html += '<button class="btn bs" onclick="goCases()">All ('+CASES.length+')</button>';
+  html += '<button class="btn bs" onclick="goOpenStatus()">Open ('+CASES.filter(c=>["new","reviewing","pending"].includes(c.status)).length+')</button>';
+  html += '<button class="btn bs" onclick="goOpenCritical()">Critical ('+CASES.filter(c=>c.priority==="critical").length+')</button>';
+  html += '<button class="btn bs" onclick="goMedical()">Medical ('+CASES.filter(c=>c.type==="medclaim").length+')</button>';
+  html += '</div>';
+  html += '<div class="card" style="padding:0;overflow:hidden">';
+  if(list.length) {
+    html += '<table><thead><tr><th>Case</th><th>Patient</th><th>Type</th><th>Priority</th><th>Status</th><th>Country</th><th>Claimed</th><th>Date</th></tr></thead><tbody>';
+    list.forEach(c => {
+      html += '<tr onclick="openCase(this.dataset.id)" data-id="'+c.id+'">' ;
+      html += '<td class="tmo">'+esc(c.caseNum||'—')+'</td>';
+      html += '<td class="tm">'+esc(c.patient||'—')+'</td>';
+      html += '<td>'+tBadge(c.type)+'</td>';
+      html += '<td>'+pBadge(c.priority)+'</td>';
+      html += '<td>'+sBadge(c.status)+'</td>';
+      html += '<td>'+esc(c.country||'—')+'</td>';
+      html += '<td class="tmo">€'+(parseFloat(c.amountClaimed)||0).toLocaleString()+'</td>';
+      html += '<td class="tmo">'+fdts(c.created)+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  } else {
+    html += '<div style="text-align:center;padding:40px;color:var(--tx3)">No cases found.</div>';
+  }
+  html += '</div>';
+  G('con').innerHTML = html;
+}
+
+function renderUrgent() { renderCases(c=>c.priority==='critical'&&c.status!=='closed'); setTop('Urgent Cases','Critical cases needing immediate action',''); }
+
+// ══════════════════════════════════════════════
+// CASE DETAIL
+// ══════════════════════════════════════════════
+function openCase(id) {
+  CURID = id; FILES = [];
+  const c = getC(id); if(!c) return;
+  if(c.filesData && c.filesData.length) {
+    // Reload file data from separate storage keys
+    FILES = c.filesData.map(meta => {
+      const fd = {...meta};
+      if(meta._key) {
+        const stored = localStorage.getItem(meta._key);
+        if(stored) fd.data = stored;
+      }
+      return fd;
+    });
+  }
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  const el = document.querySelector('.ni[data-p="cases"]'); if(el) el.classList.add('on');
+  setTop(c.caseNum||'Case', c.patient||'Case Detail',
+    '<button class="tbtn" onclick="exportCase(CURID)">Export</button>'+
+    '<button class="tbtn" onclick="deleteCase(CURID)">Delete</button>'
+  );
+  renderCD(c);
+}
+
+function renderCD(c) {
+  let html = '';
+  // Header
+  html += '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:4px">';
+  html += '<div><div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--tx3)">'+esc(c.caseNum||'—')+'</div>';
+  html += '<div style="font-family:\'Syne\',sans-serif;font-size:18px;font-weight:700;color:var(--navy);margin:4px 0" id="cdn">'+esc(c.patient||'New Case')+'</div>';
+  html += '<div id="cbdg" style="display:flex;gap:6px;flex-wrap:wrap">'+tBadge(c.type)+' '+pBadge(c.priority)+' '+sBadge(c.status)+'</div></div>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  html += '<select id="sel_status" style="padding:7px 10px;border:1px solid var(--bor);border-radius:var(--r2);background:#fff;color:var(--navy);font-size:12px;cursor:pointer">';
+  ['new','reviewing','pending','approved','declined','closed'].forEach(s => {
+    html += '<option value="'+s+'"'+(c.status===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>';
+  });
+  html += '</select>';
+  html += '<select id="sel_priority" style="padding:7px 10px;border:1px solid var(--bor);border-radius:var(--r2);background:#fff;color:var(--navy);font-size:12px;cursor:pointer">';
+  ['routine','medium','high','critical'].forEach(p => {
+    html += '<option value="'+p+'"'+(c.priority===p?' selected':'')+'>'+p.charAt(0).toUpperCase()+p.slice(1)+'</option>';
+  });
+  html += '</select>';
+  html += '</div></div>';
+
+  // Two column grid
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">';
+
+  // LEFT
+  html += '<div style="display:flex;flex-direction:column;gap:16px">';
+  html += '<div class="card"><div class="ct">Patient Information</div>';
+  html += '<div class="g2" style="margin-bottom:10px">';
+  html += '<div class="fg"><label>Patient Name</label><input id="f_p" value="'+esc(c.patient||'')+'" placeholder="Full name"></div>';
+  html += '<div class="fg"><label>Reference</label><input id="f_r" value="'+esc(c.ref||'')+'" placeholder="Ref number"></div>';
+  html += '<div class="fg"><label>Date of Loss</label><input type="date" id="f_d" value="'+esc(c.dol||'')+'"></div>';
+  html += '<div class="fg"><label>Country</label><input id="f_c" value="'+esc(c.country||'')+'" placeholder="Country"></div>';
+  html += '<div class="fg"><label>Insurer / TPA</label><input id="f_i" value="'+esc(c.insurer||'')+'" placeholder="Insurer"></div>';
+  html += '<div class="fg"><label>Case Type</label><select id="f_t"><option value="medclaim"'+(c.type==='medclaim'?' selected':'')+'>Medical Claim</option><option value="nonmedclaim"'+(c.type==='nonmedclaim'?' selected':'')+'>Non-Medical</option></select></div>';
+  html += '</div>';
+  html += '<div class="fg"><label>Description / Medical Details</label><textarea id="f_desc" rows="5" placeholder="Diagnosis, symptoms, treatment...">'+esc(c.desc||'')+'</textarea></div>';
+  html += '</div>';
+  html += '<div class="card"><div class="ct">Financial</div>';
+  html += '<button class="btn br2" id="bExtractInv" style="margin-bottom:14px;width:100%"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Extract ALL Amounts from Documents</button>';
+  html += '<div id="invExtStatus" style="display:none;margin-bottom:10px"></div>';
+  html += '<div id="invExtResults" style="margin-bottom:10px"></div>';
+  html += '<div class="g2">';
+  html += '<div class="fg"><label>Amount Claimed (€)</label><input type="number" id="f_ac" value="'+esc(c.amountClaimed||'')+'" placeholder="0.00"></div>';
+  html += '<div class="fg"><label>Amount Approved (€)</label><input type="number" id="f_aa" value="'+esc(c.amountApproved||'')+'" placeholder="0.00"></div>';
+  html += '<div class="fg"><label>Currency</label><select id="f_cu">';
+  ['EUR','USD','GBP','CHF','AED','SAR','EGP','TRY'].forEach(cur => { html += '<option'+(c.currency===cur?' selected':'')+'>'+cur+'</option>'; });
+  html += '</select></div>';
+  html += '<div class="fg"><label>Payment Status</label><select id="f_ps">';
+  ['pending','processing','paid','disputed'].forEach(ps => { html += '<option value="'+ps+'"'+(c.payStatus===ps?' selected':'')+'>'+ps.charAt(0).toUpperCase()+ps.slice(1)+'</option>'; });
+  html += '</select></div>';
+  html += '</div>';
+  html += '<div class="fg" style="margin-top:10px"><label>Finance Notes</label><textarea id="f_fn" rows="2" placeholder="Reserve, payment notes...">'+esc(c.finNotes||'')+'</textarea></div>';
+  html += '</div>';
+  html += '<div class="card"><div class="ct">Case Notes</div><textarea style="width:100%;padding:9px 11px;border:1px solid var(--bor);border-radius:var(--r2);font-family:\'DM Sans\',sans-serif;font-size:13px;color:var(--navy);background:#fff;outline:none;resize:vertical;min-height:80px" id="f_n" placeholder="Internal notes...">'+esc(c.notes||'')+'</textarea></div>';
+  html += '</div>';
+
+  // RIGHT
+  html += '<div style="display:flex;flex-direction:column;gap:16px">';
+  html += '<div class="card"><div class="ct">Documents</div>';
+  html += '<label class="dz" for="fi_c">';
+  html += '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+  html += '<p>Drop files or tap to upload</p><span>PDF, JPG, PNG, DOCX, TXT, CSV — auto-reads &amp; extracts</span>';
+  html += '</label>';
+  html += '<input type="file" id="fi_c" multiple style="display:none">';
+  html += '<div class="fl" id="fl_c"></div></div>';
+
+  html += '<div class="card"><div class="ct">AI Evaluation</div>';
+  html += '<div class="evs evi" id="evSt"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4"/></svg>&nbsp;Ready — press Run Evaluation</div>';
+  html += '<div id="evR">'+(c.eval ? renderEvalTxt(c.eval) : '')+'</div>';
+  html += '<div class="brow">';
+  html += '<button class="btn br2" id="bRun"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>Run Evaluation</button>';
+  html += '<button class="btn bs" id="bClear">Clear</button>';
+  html += '</div></div>';
+
+  html += '<div class="card"><div class="ct">Timeline</div>';
+  html += '<div class="tl" id="tlB">'+renderTL(c.timeline||[])+'</div>';
+  html += '<div style="display:flex;gap:8px;margin-top:12px"><input id="tlI" placeholder="Add note..." style="flex:1;padding:8px 10px;border:1px solid var(--bor);border-radius:var(--r2);background:#fff;color:var(--navy);font-size:13px;outline:none;font-family:\'DM Sans\',sans-serif">';
+  html += '<button class="btn bs" onclick="addTLN(CURID)">Add</button></div>';
+  html += '</div>';
+  html += '</div></div>';
+
+  // Email
+  html += '<div class="card"><div class="ct">Email</div>';
+  html += '<div class="g2" style="margin-bottom:10px">';
+  html += '<div class="fg"><label>To</label><input id="f_et" value="'+esc(c.emailTo||'')+'" placeholder="recipient@insurer.com"></div>';
+  html += '<div class="fg"><label>Subject</label><input id="f_es" value="'+esc(c.emailSubj||c.caseNum||'')+'" placeholder="Subject"></div>';
+  html += '</div><div class="fg"><label>Body</label><textarea id="f_eb" rows="4" placeholder="Email body...">'+esc(c.emailBody||'')+'</textarea></div>';
+  html += '<div class="brow"><button class="btn bp" onclick="sendEmail(CURID)">Send</button><button class="btn bs" onclick="draftEmail(CURID)">AI Draft</button><button class="btn bs" onclick="var b=G("f_eb");if(b)navigator.clipboard.writeText(b.value).then(()=>toast("Copied"))">Copy</button></div>';
+  html += '</div>';
+
+  G('con').innerHTML = html;
+
+  // Wire up all interactive elements
+  // Wrapped in try-catch so any single failure never breaks button wiring
+  const cid = c.id;
+  try {
+  const wireField = (elId, field) => {
+    const el = G(elId); if(!el) return;
+    el.oninput = () => {
+      updC(cid, {[field]: el.value});
+      if(field==='patient'){const cdn=G('cdn');if(cdn)cdn.textContent=el.value||'New Case';}
+    };
+  };
+  wireField('f_p','patient'); wireField('f_r','ref'); wireField('f_d','dol');
+  wireField('f_c','country'); wireField('f_i','insurer'); wireField('f_t','type');
+  wireField('f_desc','desc'); wireField('f_ac','amountClaimed'); wireField('f_aa','amountApproved');
+  wireField('f_cu','currency'); wireField('f_ps','payStatus'); wireField('f_fn','finNotes');
+  wireField('f_n','notes'); wireField('f_et','emailTo'); wireField('f_es','emailSubj'); wireField('f_eb','emailBody');
+
+  // Status/priority dropdowns
+  const selStatus = G('sel_status');
+  if(selStatus) selStatus.onchange = function(){
+    updC(cid,{status:this.value});
+    const cb=G('cbdg'); if(cb){const cc=getC(cid);cb.innerHTML=tBadge(cc.type)+' '+pBadge(cc.priority)+' '+sBadge(cc.status);}
+    toast('Status updated');
+  };
+  const selPriority = G('sel_priority');
+  if(selPriority) selPriority.onchange = function(){
+    updC(cid,{priority:this.value});
+    const cb=G('cbdg'); if(cb){const cc=getC(cid);cb.innerHTML=tBadge(cc.type)+' '+pBadge(cc.priority)+' '+sBadge(cc.status);}
+    toast('Priority updated');
+  };
+
+  // File upload
+  wireDZ('dz_c','fi_c', files=>addFiles(files, cid));
+  renderFL_C(cid);
+  if(c.eval) setEvSt('done','Previous evaluation loaded');
+  // Wire eval buttons - use onclick property (not addEventListener) to prevent duplicates
+  const bRun = G('bRun');
+  if(bRun) bRun.onclick = function(){ runEval(cid); };
+  const bClear = G('bClear');
+  if(bClear) bClear.onclick = function(){ clearEval(cid); };
+  // Wire invoice extract button - FILES is always populated when case is open
+  const bExtInv = G('bExtractInv');
+  if(bExtInv) bExtInv.onclick = function(){ extractInvoicesFromCase(cid); };
+  // Show existing invoices if any
+  const existingInv = getInvoices(cid);
+  if(existingInv.length) renderCaseInvoices(cid, existingInv);
+  } catch(wireErr) {
+    console.error('[renderCD] Wiring error:', wireErr);
+    // Even if wiring fails partially, force-wire the Run button
+    const bRunFallback = G('bRun');
+    if(bRunFallback) bRunFallback.onclick = function(){ runEval(cid); };
+  }
+}
+
+
+// Extract invoices directly from case - FILES[] always available when case is open
+async function extractInvoicesFromCase(caseId) {
+  if(!getKey()) { toast('No API key — go to Settings'); return; }
+
+  const statusEl = G('invExtStatus');
+  if(statusEl) statusEl.style.display = 'flex';
+
+  function setS(msg, state) {
+    if(!statusEl) return;
+    const cls = {run:'evr', done:'evd', err:'eve'};
+    statusEl.className = 'evs ' + (cls[state]||'evi');
+    statusEl.style.display = 'flex';
+    const ic = state==='run' ? '<div class="spin"></div>' :
+               state==='done' ? '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>' :
+               '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>';
+    statusEl.innerHTML = ic + '&nbsp;' + esc(msg);
+  }
+
+  const c = getC(caseId);
+  const SUPPORTED = ['img','pdf','doc','txt'];
+
+  // Build file list from ALL available sources
+  let readyFiles = [];
+
+  // Source 1: FILES in memory WITH data (just uploaded this session)
+  const fromMemory = FILES.filter(f => f.data && SUPPORTED.includes(f.ext));
+  readyFiles = [...fromMemory];
+
+  // Source 2: metadata-only FILES - reload data from localStorage
+  const noData = FILES.filter(f => !f.data && SUPPORTED.includes(f.ext));
+  for(const meta of noData) {
+    if(meta._key) {
+      const stored = localStorage.getItem(meta._key);
+      if(stored) { readyFiles.push({...meta, data:stored}); }
+    }
+  }
+
+  // Source 3: filesData in case object - load from localStorage keys
+  if(readyFiles.length === 0 && c && c.filesData) {
+    for(const meta of c.filesData) {
+      if(!SUPPORTED.includes(meta.ext)) continue;
+      const fd = {...meta};
+      if(meta._key) {
+        const stored = localStorage.getItem(meta._key);
+        if(stored) { fd.data = stored; readyFiles.push(fd); }
+      }
+    }
+  }
+
+  console.log('[Extract] FILES total:', FILES.length, 'ready with data:', readyFiles.length);
+
+  if(!readyFiles.length) {
+    // No files with data available - show re-upload option
+    setS('Documents need to be re-uploaded. Use the upload area below.', 'err');
+    const resultsEl = G('invExtResults');
+    if(resultsEl) {
+      resultsEl.innerHTML = '<div class="ib e" style="margin-top:8px"><p>The documents for this case need to be uploaded again for extraction. Use the <b>Documents</b> upload area above — once uploaded, click Extract again.</p></div>';
+    }
+    return;
+  }
+
+  setS('Processing ' + readyFiles.length + ' file(s)...', 'run');
+  let extracted = [];
+
+  for(let i=0; i<readyFiles.length; i++) {
+    const f = readyFiles[i];
+    setS('Reading: ' + f.name + ' (' + (i+1) + '/' + readyFiles.length + ')', 'run');
+    try {
+      const data = await extractInvoiceData(f);
+      if(data) {
+        const cur = (data.currency || 'EUR').toUpperCase();
+        const totalEUR = toEUR(parseFloat(data.total)||0, cur);
+        extracted.push({filename:f.name, data, cur, totalEUR, extracted_at:new Date().toISOString()});
+        setS('Done: ' + f.name + ' → ' + fEUR(totalEUR) + ' (' + (i+1) + '/' + readyFiles.length + ')', 'run');
+      } else {
+        setS('Skipped: ' + f.name + ' (no amounts found)', 'run');
+      }
+    } catch(e) {
+      console.error('[Extract] Error on', f.name, e);
+      setS('Error on ' + f.name + ': ' + e.message, 'run');
+    }
+  }
+
+  if(!extracted.length) {
+    setS('No amounts found in any document', 'err');
+    toast('No financial amounts found in documents');
+    return;
+  }
+
+  saveInvoices(caseId, extracted);
+  const totalEUR = extracted.reduce((s,e)=>s+e.totalEUR, 0);
+  updC(caseId, {amountClaimed: totalEUR.toFixed(2)});
+  const amtEl = G('f_ac'); if(amtEl) amtEl.value = totalEUR.toFixed(2);
+  setS('Done — ' + extracted.length + ' document(s), total: ' + fEUR(totalEUR), 'done');
+  renderCaseInvoices(caseId, extracted);
+  toast('Extracted from ' + extracted.length + ' document(s) — ' + fEUR(totalEUR));
+}
+
+function renderCaseInvoices(caseId, invoices) {
+  const el = G('invExtResults'); if(!el || !invoices.length) return;
+  let h = '<div style="margin-bottom:6px;font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.05em">Extracted Financial Data</div>';
+  let grandTotal = 0;
+  let allCurrencyKnown = true;
+
+  invoices.forEach(inv => {
+    const cur = inv.cur && inv.cur !== '?' ? inv.cur : null;
+    const rawTotal = inv.rawTotal || parseFloat(inv.data.total) || 0;
+    const eurTotal = inv.totalEUR || 0;
+    if(!inv.currencyKnown) allCurrencyKnown = false;
+    if(inv.currencyKnown && eurTotal) grandTotal += eurTotal;
+
+    h += '<div style="border:1px solid var(--bor);border-radius:var(--r2);padding:10px 12px;margin-bottom:8px;background:var(--bg3)">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:flex-start">';
+    h += '<div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--navy)">'+esc(inv.data.provider||inv.filename)+'</div>';
+    h += '<div style="font-size:11px;color:var(--tx3);margin-top:2px">'+esc(inv.filename)+(inv.data.date?' &middot; '+esc(inv.data.date):'')+'</div></div>';
+    h += '<div style="text-align:right;margin-left:10px">';
+    if(cur && rawTotal) {
+      h += '<div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy)">'+cur+' '+rawTotal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>';
+      if(cur !== 'EUR' && inv.currencyKnown && eurTotal) {
+        h += '<div style="font-size:11px;color:var(--tx3)">&asymp; '+fEUR(eurTotal)+'</div>';
+      }
+    } else if(rawTotal) {
+      h += '<div style="font-family:monospace;font-size:15px;font-weight:700;color:var(--navy)">'+rawTotal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>';
+      h += '<div style="font-size:11px;color:var(--am);font-weight:600">Currency not identified</div>';
+    } else {
+      h += '<div style="font-size:12px;color:var(--tx3)">No total found</div>';
+    }
+    h += '</div></div>';
+
+    const items = inv.data.line_items || [];
+    if(items.length) {
+      h += '<div style="margin-top:8px;border-top:1px solid var(--bor);padding-top:8px">';
+      items.forEach(it => {
+        const itTotal = parseFloat(it.total)||0;
+        h += '<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;gap:8px">';
+        h += '<span style="color:var(--tx2);flex:1">'+esc(it.desc||'—')+'</span>';
+        if(itTotal) {
+          h += '<span style="font-family:monospace;color:var(--navy);white-space:nowrap">'+(cur||'')+' '+itTotal.toLocaleString('en',{minimumFractionDigits:2})+'</span>';
+        }
+        h += '</div>';
+      });
+      h += '</div>';
+    }
+    if(inv.data.notes) h += '<div style="font-size:11px;color:var(--tx3);margin-top:6px;font-style:italic">'+esc(inv.data.notes)+'</div>';
+    h += '</div>';
+  });
+
+  // Grand total — only if all currencies known
+  if(invoices.length > 1 && grandTotal > 0 && allCurrencyKnown) {
+    h += '<div style="display:flex;justify-content:space-between;padding:10px 14px;background:var(--navy);border-radius:var(--r2);color:#fff">';
+    h += '<span style="font-size:13px;font-weight:600">TOTAL (EUR)</span>';
+    h += '<span style="font-family:monospace;font-size:15px;font-weight:700">'+fEUR(grandTotal)+'</span>';
+    h += '</div>';
+  } else if(!allCurrencyKnown) {
+    h += '<div style="padding:8px 12px;background:var(--ambg);border-radius:var(--r2);font-size:12px;color:#92400e;border:1px solid var(--am)">';
+    h += '<strong>Note:</strong> Some currencies could not be identified from the documents. Total in EUR cannot be calculated. Please verify amounts manually.';
+    h += '</div>';
+  }
+
+  el.innerHTML = h;
+}
+
+function renderTL(tl) {
+  if(!tl||!tl.length) return '<div style="font-size:12px;color:var(--tx3);text-align:center;padding:12px">No activity yet</div>';
+  return tl.slice(0,10).map(t => '<div class="tli"><div class="tll"><div class="tld"></div><div class="tlv"></div></div><div><div class="tla">'+esc(t.action)+'</div><div class="tlm">'+esc(t.user||'System')+' &middot; '+fdt(t.ts)+'</div></div></div>').join('');
+}
+
+function addTLN(id) {
+  const i=G('tlI'); if(!i||!i.value.trim()) return;
+  addTL(id,i.value.trim()); i.value='';
+  const tb=G('tlB'); if(tb) tb.innerHTML=renderTL(getC(id).timeline||[]);
+  toast('Note added');
+}
+
+// ══════════════════════════════════════════════
+// NEW CASE
+// ══════════════════════════════════════════════
+function renderNew() {
+  setTop('New Case','Create a new case','');
+  FILES = [];
+  let html = '<div class="card"><div class="ct">Case Information</div>';
+  html += '<div class="g2" style="margin-bottom:12px">';
+  html += '<div class="fg"><label>Patient Name</label><input id="n_p" placeholder="Full name"></div>';
+  html += '<div class="fg"><label>Reference</label><input id="n_r" placeholder="Auto-generated if blank"></div>';
+  html += '<div class="fg"><label>Date of Loss</label><input type="date" id="n_d"></div>';
+  html += '<div class="fg"><label>Country</label><input id="n_c" placeholder="Country"></div>';
+  html += '<div class="fg"><label>Insurer / TPA</label><input id="n_i" placeholder="Insurance company"></div>';
+  html += '<div class="fg"><label>Case Type</label><select id="n_t"><option value="medclaim">Medical Claim</option><option value="nonmedclaim">Non-Medical Claim</option></select></div>';
+  html += '<div class="fg"><label>Priority</label><select id="n_pu"><option value="routine">Routine</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></div>';
+  html += '<div class="fg"><label>Amount Claimed (€)</label><input type="number" id="n_a" placeholder="0.00"></div>';
+  html += '</div>';
+  html += '<div class="fg"><label>Description</label><textarea id="n_de" rows="4" placeholder="Diagnosis, symptoms, circumstances..."></textarea></div>';
+  html += '<div class="brow"><button class="btn bp" onclick="createCase()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Create Case</button><button class="btn bs" onclick="goDash()">Cancel</button></div>';
+  html += '</div>';
+  html += '<div class="card"><div class="ct">Upload Documents</div>';
+  html += '<div class="ib"><p>Upload medical reports, letters, or any documents. AI reads and extracts patient info, diagnosis, and case details automatically — any language, any handwriting.</p></div>';
+  html += '<label class="dz" for="fi_n">';
+  html += '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+  html += '<p>Drop files or tap to upload</p><span>PDF, JPG, PNG, DOCX, TXT, CSV — any language, any format</span>';
+  html += '</label>';
+  html += '<input type="file" id="fi_n" multiple style="display:none">';
+  html += '<div id="extractStatus" style="display:none;margin-top:10px"></div>';
+  html += '<div class="fl" id="fl_n"></div>';
+  html += '</div>';
+  G('con').innerHTML = html;
+  wireDZ('dz_n','fi_n', addFilesNew);
+}
+
+function createCase() {
+  const id=genId(), cn=genCN();
+  const c = {
+    id, caseNum:cn,
+    patient: G('n_p').value.trim(),
+    ref: G('n_r').value.trim()||cn,
+    dol: G('n_d').value,
+    country: G('n_c').value.trim(),
+    insurer: G('n_i').value.trim(),
+    type: G('n_t').value,
+    priority: G('n_pu').value,
+    amountClaimed: G('n_a').value,
+    amountApproved:'', currency:'EUR', payStatus:'pending',
+    desc: G('n_de').value.trim(),
+    status:'new', eval:'', notes:'', finNotes:'',
+    emailTo:'', emailSubj:'', emailBody:'',
+    filesData: FILES.map(f=>({name:f.name,size:f.size,type:f.type,ext:f.ext,_key:f._key||null})),
+    timeline:[{action:'Case created',user:S().name,ts:new Date().toISOString()}],
+    created: new Date().toISOString()
+  };
+  CASES.unshift(c); save(); updBadges();
+  // Migrate temp storage keys to permanent case keys
+  FILES.forEach((fd, i) => {
+    if(fd._key && fd._key.startsWith('fdtmp_') && fd.data) {
+      const newKey = 'fd_'+id+'_'+i;
+      try {
+        localStorage.setItem(newKey, fd.data);
+        localStorage.removeItem(fd._key);
+        fd._key = newKey;
+        // Update in saved case
+        if(c.filesData && c.filesData[i]) c.filesData[i]._key = newKey;
+      } catch(e) {}
+    }
+  });
+  updC(id, {filesData: c.filesData});
+  toast('Case '+cn+' created!');
+  openCase(id);
+}
+
+// ══════════════════════════════════════════════
+// DOCUMENTS
+// ══════════════════════════════════════════════
+let DCID = null, LDOC = '';
+
+function renderDocs() {
+  setTop('Documents','Generate letters from case evaluation','');
+  let html = '<div class="card"><div class="ct">Select Case</div>';
+  html += '<div class="fg"><label>Case</label><select id="dcs" onchange="loadDC(this.value)"><option value="">— Select a case —</option>';
+  CASES.forEach(c => {
+    const up = (c.eval||'').toUpperCase();
+    const tag = !c.eval ? '' : /\bDECLIN|\bDENIED|\bNOT COVERED/.test(up) ? ' 🔴 DECLINED' : /\bPARTIAL/.test(up) ? ' 🟡 PARTIAL' : /\bAPPROVED|\bCOVERED/.test(up) ? ' 🟢 APPROVED' : ' ✓ Evaluated';
+    html += '<option value="'+c.id+'"'+(CURID===c.id?' selected':'')+'>'+esc(c.caseNum+' — '+(c.patient||'No patient'))+tag+'</option>';
+  });
+  html += '</select></div>';
+  html += '<div id="dci" style="display:none;margin-top:0"></div>';
+  html += '</div>';
+  html += '<div id="docLetters"></div>';
+  html += '<div class="card" id="docProviderCard" style="display:none"><div class="ct">Provider & Internal Letters</div>';
+  html += dTpl('gop','Guarantee of Payment (GOP)','Payment commitment to hospital',
+    '<div class="fg" style="margin-bottom:10px"><label>Hospital / Provider</label><input id="gop_h" placeholder="Hospital name"></div>'+
+    '<div class="fg" style="margin-bottom:10px"><label>Amount (€)</label><input type="number" id="gop_a"></div>'+
+    '<div class="fg" style="margin-bottom:10px"><label>Validity</label><input id="gop_v" value="30 days"></div>'+
+    '<button class="btn br2" onclick="genDoc(\"gop\")">Generate GOP</button>');
+  html += dTpl('pa','Pre-Authorization Request','Request approval from insurer',
+    '<div class="fg" style="margin-bottom:10px"><label>Procedure</label><input id="pa_p" placeholder="Procedure"></div>'+
+    '<div class="fg" style="margin-bottom:10px"><label>Estimated Cost (€)</label><input type="number" id="pa_c"></div>'+
+    '<button class="btn bp" onclick="genDoc(\"preauth\")">Generate Pre-Auth</button>');
+  html += dTpl('mn','Medical Necessity Letter','Confirm medical necessity',
+    '<div class="fg" style="margin-bottom:10px"><label>Doctor</label><input id="mn_d" placeholder="Doctor name"></div>'+
+    '<button class="btn bp" onclick="genDoc(\"mednec\")">Generate</button>');
+  html += '</div>';
+  html += '<div id="docOut" style="display:none" class="card"><div class="ct">Generated Letter</div>';
+  html += '<div id="docSt" class="evs evr"><div class="spin"></div>&nbsp;Generating...</div>';
+  html += '<div id="docTxt" style="margin-top:14px;font-size:13px;line-height:1.9;color:var(--tx2);white-space:pre-wrap;font-family:monospace;background:var(--bg3);padding:18px;border-radius:var(--r2);border:1px solid var(--bor)"></div>';
+  html += '<div class="brow"><button class="btn bp" onclick="copyDoc()">Copy</button><button class="btn bs" onclick="downloadDoc()">Download</button></div>';
+  html += '</div>';
+  G('con').innerHTML = html;
+  if(CURID) { const s=G('dcs'); if(s){s.value=CURID; loadDC(CURID);} }
+}
+
+function dTpl(id,title,sub,body) {
+  return '<div class="dt"><div class="dth" onclick="toggleDT(this)"><div><div class="dtht">'+title+'</div><div class="dths">'+sub+'</div></div><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div><div class="dtb" id="dt_'+id+'">'+body+'</div></div>';
+}
+
+function loadDC(id) {
+  DCID = id;
+  const c = getC(id);
+  const dci = G('dci');
+  const lettersDiv = G('docLetters');
+  const provCard = G('docProviderCard');
+
+  if(!c || !id) {
+    if(dci) dci.style.display = 'none';
+    if(lettersDiv) lettersDiv.innerHTML = '';
+    if(provCard) provCard.style.display = 'none';
+    return;
+  }
+
+  // Show provider card
+  if(provCard) provCard.style.display = '';
+
+  // Pre-fill amounts
+  const ga=G('gop_a'); if(ga&&!ga.value) ga.value=c.amountClaimed||'';
+  const aa=G('al_a'); if(aa) aa.value=c.amountApproved||c.amountClaimed||'';
+
+  // Detect verdict from evaluation
+  const up = (c.eval||'').toUpperCase();
+  const hasEval = !!c.eval;
+  const isDeclined = hasEval && /\bDECLIN|\bDENIED|\bNOT COVERED|\bREJECT/.test(up);
+  const isPartial  = hasEval && !isDeclined && /\bPARTIAL/.test(up);
+  const isApproved = hasEval && !isDeclined && !isPartial && /\bAPPROVED|\bCOVERED/.test(up);
+
+  // Extract decision line from eval
+  let decisionLine = '';
+  if(c.eval) {
+    const m = c.eval.match(/DECISION\s*:?\s*(.+)/i);
+    if(m) decisionLine = m[1].trim();
+  }
+
+  // Build letter panel
+  if(!lettersDiv) return;
+
+  if(!hasEval) {
+    lettersDiv.innerHTML = '<div class="card"><div class="ib"><p>No evaluation found for this case. Open the case and run <strong>AI Evaluation</strong> first — the letter will then be generated automatically from the evaluation findings.</p></div>'
+      + '<button class="btn bp" onclick="openCase(this.dataset.id)" data-id="'+c.id+'">Open Case &amp; Evaluate</button></div>';
+    return;
+  }
+
+  // Build the appropriate letter card based on verdict
+  let cardHtml = '<div class="card">';
+
+  if(isDeclined) {
+    cardHtml += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:8px;background:#fee2e2;border:2px solid #e8231a;margin-bottom:16px">'
+      + '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#e8231a" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+      + '<div><div style="font-size:14px;font-weight:700;color:#991b1b">DECLINED</div>'
+      + (decisionLine ? '<div style="font-size:12px;color:#e8231a;margin-top:2px">'+esc(decisionLine)+'</div>' : '')
+      + '</div></div>';
+    cardHtml += '<div class="ct">Denial Letter to Client</div>';
+    cardHtml += '<div class="ib"><p>This letter will explain to the client why the claim is declined, referencing the exact policy exclusions and clauses from the evaluation.</p></div>';
+    cardHtml += '<div class="fg" style="margin-bottom:12px"><label>Additional Reason (optional — evaluation used automatically)</label><textarea id="dl_r" rows="2" placeholder="Leave blank to use evaluation findings..."></textarea></div>';
+    cardHtml += '<button class="btn bd" style="width:100%;justify-content:center;padding:12px" onclick="genDoc(\"client_denial\")">'
+      + '<svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>&nbsp;Generate Denial Letter</button>';
+
+  } else if(isPartial) {
+    cardHtml += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:8px;background:#fef3c7;border:2px solid #f59e0b;margin-bottom:16px">'
+      + '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#d97706" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>'
+      + '<div><div style="font-size:14px;font-weight:700;color:#92400e">PARTIALLY APPROVED</div>'
+      + (decisionLine ? '<div style="font-size:12px;color:#d97706;margin-top:2px">'+esc(decisionLine)+'</div>' : '')
+      + '</div></div>';
+    cardHtml += '<div class="ct">Partial Approval Letter to Client</div>';
+    cardHtml += '<div class="ib"><p>This letter explains what is covered and what is not, with the exact amounts and policy clause references from the evaluation.</p></div>';
+    cardHtml += '<div class="fg" style="margin-bottom:12px"><label>Approved Amount (€)</label><input type="number" id="al_a" value="'+esc(c.amountApproved||'')+'"></div>';
+    cardHtml += '<button class="btn bp" style="width:100%;justify-content:center;padding:12px;background:#d97706;border-color:#d97706" onclick="genDoc(\"client_partial\")">'
+      + '&nbsp;Generate Partial Approval Letter</button>';
+
+  } else if(isApproved) {
+    cardHtml += '<div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:8px;background:#d1fae5;border:2px solid #10b981;margin-bottom:16px">'
+      + '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#059669" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/></svg>'
+      + '<div><div style="font-size:14px;font-weight:700;color:#065f46">APPROVED</div>'
+      + (decisionLine ? '<div style="font-size:12px;color:#059669;margin-top:2px">'+esc(decisionLine)+'</div>' : '')
+      + '</div></div>';
+    cardHtml += '<div class="ct">Approval Letter to Client</div>';
+    cardHtml += '<div class="ib"><p>This letter confirms approval to the client, stating the approved amount, covered services, and policy references from the evaluation.</p></div>';
+    cardHtml += '<div class="fg" style="margin-bottom:12px"><label>Approved Amount (€)</label><input type="number" id="al_a" value="'+esc(c.amountApproved||c.amountClaimed||'')+'"></div>';
+    cardHtml += '<div class="fg" style="margin-bottom:12px"><label>Conditions (optional)</label><textarea id="al_n" rows="2" placeholder="Any payment conditions..."></textarea></div>';
+    cardHtml += '<button class="btn bg2c" style="width:100%;justify-content:center;padding:12px" onclick="genDoc(\"client_approval\")">'
+      + '<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Generate Approval Letter</button>';
+
+  } else {
+    // Evaluation exists but no clear verdict detected
+    cardHtml += '<div class="ib"><p>Evaluation found but verdict unclear. Choose the appropriate letter:</p></div>';
+    cardHtml += '<div class="brow">';
+    cardHtml += '<button class="btn bg2c" onclick="genDoc(\"client_approval\")">Approval Letter</button>';
+    cardHtml += '<button class="btn bp" onclick="genDoc(\"client_partial\")">Partial Approval</button>';
+    cardHtml += '<button class="btn bd" onclick="genDoc(\"client_denial\")">Denial Letter</button>';
+    cardHtml += '</div>';
+  }
+
+  // Auto-generate button
+  cardHtml += '<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--bor)">';
+  cardHtml += '<button class="btn bs" style="font-size:11px" onclick="autoGenLetter()">↺ Re-generate Letter</button>';
+  cardHtml += '</div>';
+  cardHtml += '</div>';
+
+  lettersDiv.innerHTML = cardHtml;
+
+  // Auto-generate immediately
+  if(isDeclined) genDoc('client_denial');
+  else if(isPartial) genDoc('client_partial');
+  else if(isApproved) genDoc('client_approval');
+}
+
+function autoGenLetter() {
+  const c = getC(DCID); if(!c||!c.eval) return;
+  const up = c.eval.toUpperCase();
+  if(/\bDECLIN|\bDENIED|\bNOT COVERED/.test(up)) genDoc('client_denial');
+  else if(/\bPARTIAL/.test(up)) genDoc('client_partial');
+  else genDoc('client_approval');
+}
+
+const gv = id => (G(id)||{}).value||'';
+
+async function genDoc(type) {
+  if(!getKey()) { toast('Add API key in Settings first'); return; }
+  if(!DCID) { toast('Select a case first'); return; }
+  const c = getC(DCID); if(!c) return;
+  const out = G('docOut'); out.style.display='';
+  G('docSt').className='evs evr'; G('docSt').innerHTML='<div class="spin"></div>&nbsp;Generating...';
+  G('docTxt').textContent='';
+  const today = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+
+  // Build evaluation summary to include in letters
+  const evalSummary = c.eval ? '\n\nEVALUATION SUMMARY (from AI analysis):\n'+c.eval.substring(0,1500)+(c.eval.length>1500?'\n[...]':'') : '';
+  const hasCoverage = c.eval ? (c.eval.toUpperCase().includes('APPROVED') || c.eval.toUpperCase().includes('COVERED')) : false;
+  const isDeclined = c.eval ? (c.eval.toUpperCase().includes('DECLINED') || c.eval.toUpperCase().includes('NOT COVERED')) : false;
+
+  const base = 'Case Ref: '+c.caseNum+' | Patient: '+(c.patient||'—')+' | Insurer/TPA: '+(c.insurer||'—')+' | Date of Loss: '+(c.dol||'—')+' | Country: '+(c.country||'—')+' | Diagnosis: '+(c.desc||'—').substring(0,200)+' | Amount Claimed: €'+(c.amountClaimed||'—');
+
+  const SYS_DOC = 'You are a senior TPA claims officer writing formal professional letters to insurers and clients. Today is '+today+'. Write complete formal letters with: proper salutation, reference numbers, clear explanation of findings, specific policy clause references where evaluation is available, exact amounts, and professional closing. Letters must be based on the actual case evaluation findings provided. Always include the case reference number prominently.';
+
+  const prompts = {
+    gop: 'Write a formal Guarantee of Payment (GOP) letter to the hospital confirming payment commitment.\n'+base+'\nHospital: '+(gv('gop_h')||'[Hospital Name]')+'\nGuaranteed Amount: €'+(gv('gop_a')||c.amountClaimed||'—')+'\nValidity: '+(gv('gop_v')||'30 days')+evalSummary,
+
+    preauth: 'Write a formal Pre-Authorization Request to the insurer requesting approval for treatment.\n'+base+'\nRequested Procedure: '+(gv('pa_p')||'[Procedure]')+'\nEstimated Cost: €'+(gv('pa_c')||'—')+evalSummary,
+
+    mednec: 'Write a Medical Necessity Letter confirming the medical necessity of the treatment.\n'+base+'\nAttending Doctor: '+(gv('mn_d')||'—')+evalSummary,
+
+    denial: 'Write a formal Claim Denial Letter to the patient explaining why the claim cannot be covered.\n'+base+'\nDenial Reason: '+(gv('dl_r')||'See evaluation below')+'\nIMPORTANT: Include specific policy exclusion clauses from the evaluation. Explain clearly and professionally why the claim is declined. Mention the right to appeal if applicable.'+evalSummary,
+
+    approval: 'Write a formal Claim Approval Letter to the patient confirming coverage and payment.\n'+base+'\nApproved Amount: €'+(gv('al_a')||c.amountApproved||c.amountClaimed||'—')+'\nConditions/Notes: '+(gv('al_n')||'None')+'\nIMPORTANT: Reference the specific policy clauses that confirm coverage. State the approved amount clearly. Include payment timeline and any conditions.'+evalSummary,
+
+    client_approval: 'Write a client notification letter confirming approval of their insurance claim.\n'+base+'\nApproved Amount: €'+(gv('al_a')||c.amountApproved||'—')+'\nIMPORTANT: Write in clear simple language for the patient/client. Explain what is covered, the amount approved, next steps for payment, and any conditions. Reference policy benefits clearly.'+evalSummary,
+
+    client_denial: 'Write a client notification letter explaining the decline of their insurance claim.\n'+base+'\nDenial Reason: '+(gv('dl_r')||'See evaluation below')+'\nIMPORTANT: Write in clear simple language for the patient/client. Explain why the claim cannot be covered using plain language. Reference the specific exclusion or policy clause. Mention the appeals process and deadline. Be empathetic but clear.'+evalSummary,
+
+    client_partial: 'Write a client notification letter explaining partial approval of their insurance claim.\n'+base+'\nApproved Amount: €'+(gv('al_a')||c.amountApproved||'—')+'\nTotal Claimed: €'+(c.amountClaimed||'—')+'\nIMPORTANT: Write in clear simple language. Explain what IS covered and what is NOT covered, with reasons for each. Reference policy clauses. State exact amounts approved vs declined. Mention appeals process.'+evalSummary
+  };
+
+  const prompt = prompts[type];
+  if(!prompt) { toast('Unknown document type'); return; }
+
+  try {
+    LDOC = await apiCall([{role:'user',content:prompt}], SYS_DOC, 1200);
+    G('docTxt').textContent = LDOC;
+    G('docSt').className='evs evd';
+    G('docSt').innerHTML='<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;Document ready';
+    addTL(DCID, 'Letter generated: '+type);
+    out.scrollIntoView({behavior:'smooth'});
+  } catch(e) {
+    G('docSt').className='evs eve';
+    G('docSt').innerHTML='Error: '+esc(e.message);
+    toast('Error: '+e.message);
+  }
+}
+
+// ══════════════════════════════════════════════
+// FINANCE
+// ══════════════════════════════════════════════
+
+// ── FINANCIAL EXTRACTION ──
+const FX = {'EUR':1,'USD':0.92,'GBP':1.17,'CHF':1.04,'AED':0.25,'SAR':0.245,'EGP':0.018,'TRY':0.027,'JPY':0.0062,'CAD':0.68,'AUD':0.60,'ILS':0.25,'JOD':1.30,'KWD':3.01,'BHD':2.44,'QAR':0.253,'OMR':2.39,'MAD':0.092,'NGN':0.00057,'ZAR':0.050,'INR':0.011,'THB':0.026,'SGD':0.69,'CNY':0.127,'BRL':0.17,'MXN':0.054};
+function toEUR(amount, cur) { if(!cur || cur==='null' || cur==='UNKNOWN') return null; const r=FX[cur.toUpperCase()]; return r ? Math.round(amount*r*100)/100 : null; }
+function fEUR(n) { return n==null?'—':'€'+parseFloat(n).toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+const INV_PROMPT = 'You are a precise financial data extractor for insurance claims. Your job is to READ and COPY amounts EXACTLY as they appear in the document — never calculate, never estimate, never guess. STRICT RULES: 1. Copy amounts digit-for-digit exactly as printed. If you see 1,250.00 write 1250.00. If you see 1.250,00 (European format) write 1250.00. Never round or approximate. 2. Currency: ONLY state the currency if it is EXPLICITLY written in the document (symbol like €$£ or code like EUR USD GBP TRY EGP AED SAR). If currency is NOT clearly shown, use null — do NOT guess. 3. If a total is unclear or you are not 100% certain of any amount, use null for that field rather than guessing. 4. Do NOT create amounts that are not in the document. Do NOT invent line items. 5. Use the GRAND TOTAL or TOTAL DUE as the total field — not subtotals. Return ONLY a raw JSON object, no markdown. Format: {"provider":"exact name from document or null","document_type":"invoice or receipt or bill or medical report or letter or prescription or estimate or other","date":"DD/MM/YYYY exactly as in document or null","invoice_ref":"exact reference number or null","currency":"ISO code ONLY if explicitly shown in document, else null","currency_symbol":"exact symbol as shown e.g. € $ £ or null","line_items":[{"desc":"exact description copied from document","qty":1,"unit":0.00,"total":0.00,"category":"consultation or surgery or medication or lab or imaging or accommodation or ambulance or emergency or therapy or dental or optical or other"}],"subtotal":0.00,"tax":0.00,"discount":0.00,"total":0.00,"paid":0.00,"outstanding":0.00,"notes":"exact notes from document or null","confidence":"high if all amounts clearly readable, medium if some amounts unclear, low if document is unclear"} Use null for ANY field you are not certain about. Accuracy is critical — insurance decisions depend on these numbers.';
+
+async function extractInvoiceData(fd) {
+  let mc = [];
+
+  if(fd.ext === 'img') {
+    // Images: JPEG, PNG, GIF, WebP, HEIC etc
+    const dataUrl = fd.data;
+    let mtype = 'image/jpeg'; // safe default for all phone photos
+    if(dataUrl.startsWith('data:image/png')) mtype = 'image/png';
+    else if(dataUrl.startsWith('data:image/gif')) mtype = 'image/gif';
+    else if(dataUrl.startsWith('data:image/webp')) mtype = 'image/webp';
+    const b64 = dataUrl.indexOf(',') > -1 ? dataUrl.substring(dataUrl.indexOf(',')+1) : dataUrl;
+    mc.push({type:'image', source:{type:'base64', media_type:mtype, data:b64}});
+
+  } else if(fd.ext === 'pdf') {
+    // PDF documents
+    const b64 = fd.data.indexOf(',') > -1 ? fd.data.substring(fd.data.indexOf(',')+1) : fd.data;
+    mc.push({type:'document', source:{type:'base64', media_type:'application/pdf', data:b64}, title:fd.name});
+
+  } else if(fd.ext === 'doc') {
+    // Word documents (doc/docx) - extract text via mammoth
+    try {
+      const ab = b64AB(fd.data.split(',')[1]);
+      const r = await mammoth.extractRawText({arrayBuffer:ab});
+      const txt = r.value ? r.value.trim() : '';
+      if(!txt) { console.warn('Empty Word doc:', fd.name); return null; }
+      mc.push({type:'text', text:'[WORD DOCUMENT: '+fd.name+']\n\n'+txt});
+    } catch(e) {
+      console.error('Word doc error:', fd.name, e);
+      return null;
+    }
+
+  } else if(fd.ext === 'txt') {
+    // Text files: TXT, CSV, RTF, ODT, XLS, XLSX
+    try {
+      // Data URL: data:text/plain;base64,... OR data:application/...;base64,...
+      let text = '';
+      if(fd.data.includes(';base64,')) {
+        const b64 = fd.data.split(';base64,')[1];
+        text = atob(b64);
+      } else if(fd.data.includes(',')) {
+        // Plain text data URL (not base64)
+        text = decodeURIComponent(fd.data.split(',').slice(1).join(','));
+      }
+      if(!text.trim()) return null;
+      // Truncate very long files
+      if(text.length > 8000) text = text.substring(0, 8000) + '\n[... truncated]';
+      mc.push({type:'text', text:'[DOCUMENT: '+fd.name+']\n\n'+text.trim()});
+    } catch(e) {
+      console.error('Text file error:', fd.name, e);
+      return null;
+    }
+
+  } else {
+    console.log('Unsupported file type for invoice extraction:', fd.ext, fd.name);
+    return null;
+  }
+
+  mc.push({type:'text', text:INV_PROMPT});
+
+  try {
+    const raw = await apiCall([{role:'user', content:mc}], null, 1500);
+    const cleaned = raw.trim().replace(/^```json\s*/,'').replace(/^```/,'').replace(/```$/,'').trim();
+    const parsed = JSON.parse(cleaned);
+    console.log('[Invoice] Extracted from', fd.name, ':', JSON.stringify(parsed).substring(0,100));
+    return parsed;
+  } catch(e) {
+    console.error('[Invoice] Parse error from', fd.name, ':', e.message);
+    toast('Could not parse invoice from ' + fd.name);
+    return null;
+  }
+}
+
+function getInvoices(caseId) { try { return JSON.parse(localStorage.getItem('invs_'+caseId)||'[]'); } catch(e) { return []; } }
+function saveInvoices(caseId, arr) { localStorage.setItem('invs_'+caseId, JSON.stringify(arr)); }
+
+async function extractAllInvoices(caseId) {
+  const c = getC(caseId); if(!c) { toast('Case not found'); return; }
+  if(!getKey()) { toast('No API key — go to Settings'); return; }
+
+  const statusEl = G('inv_status');
+  const SUPPORTED = ['img','pdf','doc','txt'];
+
+  function setStatus(msg, state) {
+    if(!statusEl) return;
+    const cls = {run:'evr',done:'evd',err:'eve',idle:'evi'};
+    statusEl.className = 'evs '+(cls[state]||'evi');
+    const ic = state==='run'?'<div class="spin"></div>':state==='done'?'<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>':'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/></svg>';
+    statusEl.innerHTML = ic+'&nbsp;'+msg;
+  }
+
+  setStatus('Loading files...','run');
+  let files = [];
+
+  // Load from filesData _keys in localStorage
+  for(const meta of (c.filesData||[])) {
+    if(!SUPPORTED.includes(meta.ext)) continue;
+    if(meta._key) {
+      const d = localStorage.getItem(meta._key);
+      if(d) { files.push({...meta, data:d}); continue; }
+    }
+    // Fallback: check FILES global by name
+    const mem = FILES.find(f=>f.name===meta.name&&f.data);
+    if(mem) files.push({...mem});
+  }
+
+  // Last resort: FILES global directly
+  if(!files.length) {
+    files = FILES.filter(f=>f.data&&SUPPORTED.includes(f.ext));
+  }
+
+  console.log('[Finance] files ready:', files.length, files.map(f=>f.name+'('+f.ext+')').join(', '));
+
+  if(!files.length) {
+    setStatus('No documents found. Open the case, upload documents, then extract.','err');
+    const listEl = G('inv_list');
+    if(listEl) listEl.innerHTML = '<div class="ib e"><p>Please open the case and upload the documents first, then return here to extract.</p></div>';
+    return;
+  }
+
+  let extracted = [];
+  for(let i=0; i<files.length; i++) {
+    const f = files[i];
+    setStatus('Reading '+esc(f.name)+' ('+(i+1)+'/'+files.length+')...','run');
+    try {
+      const data = await extractInvoiceData(f);
+      if(data && (data.total || (data.line_items && data.line_items.length))) {
+        const cur = data.currency ? data.currency.toUpperCase() : null;
+        const rawTotal = parseFloat(data.total) || 0;
+        const totalEUR = cur ? toEUR(rawTotal, cur) : null;
+        extracted.push({
+          filename: f.name, data,
+          cur: cur||'?', rawTotal,
+          totalEUR: totalEUR||0,
+          currencyKnown: !!cur,
+          extracted_at: new Date().toISOString()
+        });
+      }
+    } catch(e) { console.error('[Finance]',f.name,e); }
+  }
+
+  if(!extracted.length) {
+    setStatus('No financial amounts found in documents','err');
+    return;
+  }
+
+  saveInvoices(caseId,extracted);
+  const total=extracted.reduce((s,e)=>s+e.totalEUR,0);
+  updC(caseId,{amountClaimed:total.toFixed(2)});
+  setStatus('Done — '+extracted.length+' document(s), total: '+fEUR(total),'done');
+  renderInvoiceList(caseId,extracted);
+  toast('Extracted from '+extracted.length+' document(s) — '+fEUR(total));
+}
+
+function renderInvoiceList(caseId, invoices) {
+  const el = G('inv_list'); if(!el) return;
+  if(!invoices.length) { el.innerHTML='<div style="color:var(--tx3);font-size:13px;padding:12px">No data extracted yet.</div>'; return; }
+  let h = '';
+  let grandTotal = 0;
+  let allCurrencyKnown = true;
+
+  invoices.forEach(inv => {
+    const cur = inv.cur && inv.cur !== '?' ? inv.cur : null;
+    const rawTotal = inv.rawTotal || parseFloat(inv.data.total) || 0;
+    const eurTotal = inv.totalEUR || 0;
+    if(!inv.currencyKnown) allCurrencyKnown = false;
+    if(inv.currencyKnown && eurTotal) grandTotal += eurTotal;
+    const items = inv.data.line_items || [];
+
+    h += '<div style="border:1px solid var(--bor);border-radius:var(--r2);overflow:hidden;margin-bottom:12px">';
+    // Header
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg3)">';
+    h += '<div><div style="font-size:13px;font-weight:600;color:var(--navy)">'+esc(inv.data.provider||inv.filename)+'</div>';
+    h += '<div style="font-size:11px;color:var(--tx3);margin-top:2px">'+esc(inv.filename)+(inv.data.date?' &middot; '+esc(inv.data.date):'')+(inv.data.invoice_ref?' &middot; Ref: '+esc(inv.data.invoice_ref):'')+'</div></div>';
+    h += '<div style="text-align:right">';
+    if(cur && rawTotal) {
+      h += '<div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--navy)">'+cur+' '+rawTotal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>';
+      if(cur !== 'EUR' && inv.currencyKnown && eurTotal) {
+        h += '<div style="font-size:11px;color:var(--tx3)">&asymp; '+fEUR(eurTotal)+'</div>';
+      }
+    } else if(rawTotal) {
+      h += '<div style="font-family:monospace;font-size:16px;font-weight:700;color:var(--navy)">'+rawTotal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>';
+      h += '<div style="font-size:11px;color:var(--am);font-weight:600">⚠ Currency not identified</div>';
+    }
+    h += '</div></div>';
+
+    if(items.length) {
+      h += '<table style="width:100%;border-collapse:collapse">';
+      h += '<thead><tr style="background:#f8fafc"><th style="padding:6px 12px;font-size:10px;text-align:left;color:var(--tx3);border-bottom:1px solid var(--bor)">Service / Item</th><th style="padding:6px 12px;font-size:10px;text-align:center;color:var(--tx3);border-bottom:1px solid var(--bor)">Category</th><th style="padding:6px 12px;font-size:10px;text-align:right;color:var(--tx3);border-bottom:1px solid var(--bor)">Amount</th></tr></thead><tbody>';
+      items.forEach(it => {
+        const itTotal = parseFloat(it.total)||0;
+        h += '<tr style="border-bottom:1px solid var(--bor)">';
+        h += '<td style="padding:8px 12px;font-size:12px;color:var(--navy)">'+esc(it.desc||'—')+'</td>';
+        h += '<td style="padding:8px 12px;font-size:11px;color:var(--tx3);text-align:center">'+esc(it.category||'—')+'</td>';
+        h += '<td style="padding:8px 12px;font-size:12px;font-family:monospace;text-align:right;color:var(--navy)">';
+        if(itTotal) h += (cur||'')+' '+itTotal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+        else h += '—';
+        h += '</td></tr>';
+      });
+      h += '</tbody><tfoot><tr style="border-top:2px solid var(--bor)">';
+      h += '<td colspan="2" style="padding:8px 12px;font-size:12px;font-weight:600;color:var(--navy)">TOTAL</td>';
+      h += '<td style="padding:8px 12px;font-size:13px;font-family:monospace;font-weight:700;color:var(--navy);text-align:right">';
+      if(rawTotal) h += (cur||'')+' '+rawTotal.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+      else h += '—';
+      h += '</td></tr></tfoot></table>';
+    }
+    h += '</div>';
+  });
+
+  if(invoices.length > 1 && grandTotal > 0 && allCurrencyKnown) {
+    h += '<div style="display:flex;justify-content:space-between;padding:12px 16px;background:var(--navy);border-radius:var(--r2);color:#fff;margin-top:4px">';
+    h += '<span style="font-size:13px;font-weight:600">GRAND TOTAL (converted to EUR)</span>';
+    h += '<span style="font-family:monospace;font-size:16px;font-weight:700">'+fEUR(grandTotal)+'</span>';
+    h += '</div>';
+  } else if(!allCurrencyKnown) {
+    h += '<div style="padding:10px 14px;background:var(--ambg);border-radius:var(--r2);font-size:12px;color:#92400e;border:1px solid var(--am);margin-top:4px">';
+    h += '<strong>⚠ Currency Warning:</strong> Some documents did not have a clearly identified currency. Amounts shown in original figures only. Please verify currency and totals manually before processing.';
+    h += '</div>';
+  }
+
+  el.innerHTML = h;
+}
+
+function renderFin() {
+  setTop('Finance','Invoice extraction &amp; financial overview','');
+  const tC=CASES.reduce((s,c)=>s+(parseFloat(c.amountClaimed)||0),0);
+  const tA=CASES.reduce((s,c)=>s+(parseFloat(c.amountApproved)||0),0);
+  const tP=CASES.filter(c=>c.payStatus==='pending').reduce((s,c)=>s+(parseFloat(c.amountClaimed)||0),0);
+  const tPd=CASES.filter(c=>c.payStatus==='paid').reduce((s,c)=>s+(parseFloat(c.amountApproved)||0),0);
+
+  let html = '<div class="sg">';
+  html += '<div class="sc bl"><div class="sl">Total Claimed</div><div class="sv">'+fEUR(tC)+'</div><div class="ss">'+CASES.length+' cases</div></div>';
+  html += '<div class="sc gr"><div class="sl">Approved</div><div class="sv">'+fEUR(tA)+'</div><div class="ss">'+(tC?Math.round(tA/tC*100):0)+'%</div></div>';
+  html += '<div class="sc am"><div class="sl">Pending</div><div class="sv">'+fEUR(tP)+'</div><div class="ss">'+CASES.filter(c=>c.payStatus==='pending').length+' cases</div></div>';
+  html += '<div class="sc rd"><div class="sl">Paid</div><div class="sv">'+fEUR(tPd)+'</div><div class="ss">'+CASES.filter(c=>c.payStatus==='paid').length+' cases</div></div>';
+  html += '</div>';
+
+  // Invoice extraction by case
+  html += '<div class="card"><div class="ct">Extract Invoices from Case Documents</div>';
+  html += '<div class="ib"><p>Select a case to extract ALL amounts from every uploaded document — invoices, medical reports, letters, prescriptions, receipts, any document mentioning money. Converted to EUR automatically.</p></div>';
+  html += '<div class="fg" style="margin-bottom:12px"><label>Select Case</label>';
+  html += '<select id="fin_case_sel" style="background:#fff">';
+  html += '<option value="">— Select a case —</option>';
+  CASES.forEach(c => {
+    const invCount = getInvoices(c.id).length;
+    const selected = (CURID && CURID === c.id) ? ' selected' : '';
+    html += '<option value="'+c.id+'"'+selected+'>'+esc(c.caseNum+' — '+(c.patient||'No patient'))+(invCount?' ('+invCount+' invoices)':'')+'</option>';
+  });
+  html += '</select></div>';
+  html += '<div id="inv_status" class="evs evi" style="margin-bottom:12px"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4"/></svg>&nbsp;Select a case then click Extract</div>';
+  html += '<button class="btn br2" id="btn_extract_inv" style="margin-bottom:16px"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Extract from All Documents</button>';
+  html += '<div id="inv_list"></div></div>';
+
+  // All cases table
+  html += '<div class="card" style="padding:0;overflow:hidden"><div style="padding:14px 18px;border-bottom:1px solid var(--bor)" class="ct">All Cases Financial</div>';
+  if(CASES.length) {
+    html += '<table><thead><tr><th>Case</th><th>Patient</th><th>Status</th><th>Claimed</th><th>Approved</th><th>Payment</th><th>Invoices</th></tr></thead><tbody>';
+    CASES.forEach(c => {
+      const invs = getInvoices(c.id);
+      html += '<tr onclick="openCase(\''+c.id+'\')">';
+      html += '<td class="tmo">'+esc(c.caseNum||'—')+'</td>';
+      html += '<td class="tm">'+esc(c.patient||'—')+'</td>';
+      html += '<td>'+sBadge(c.status)+'</td>';
+      html += '<td class="tmo">'+fEUR(parseFloat(c.amountClaimed)||0)+'</td>';
+      html += '<td class="tmo" style="color:var(--gr)">'+fEUR(parseFloat(c.amountApproved)||0)+'</td>';
+      html += '<td>'+pyBadge(c.payStatus)+'</td>';
+      html += '<td class="tmo">'+(invs.length ? '<span style="color:var(--navy);font-weight:600">'+invs.length+' extracted</span>' : '<span style="color:var(--tx3)">—</span>')+'</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  } else {
+    html += '<div style="text-align:center;padding:40px;color:var(--tx3)">No cases yet.</div>';
+  }
+  html += '</div>';
+  G('con').innerHTML = html;
+
+  // Wire extract button
+  const btn = G('btn_extract_inv');
+  if(btn) btn.onclick = function() {
+    const sel = G('fin_case_sel');
+    const cid = sel ? sel.value : '';
+    if(!cid) { toast('Select a case first'); return; }
+    const existing = getInvoices(cid);
+    if(existing.length) renderInvoiceList(cid, existing);
+    extractAllInvoices(cid);
+  };
+
+  // Auto-show if case pre-selected
+  const sel = G('fin_case_sel');
+  if(sel && sel.value) {
+    const cid = sel.value;
+    const existing = getInvoices(cid);
+    if(existing.length) {
+      renderInvoiceList(cid, existing);
+      const st = G('inv_status');
+      if(st) { st.className='evs evd'; st.innerHTML='<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;'+existing.length+' invoice(s) extracted. Click Extract to re-process.'; }
+    }
+  }
+
+  // When case selected, show existing invoices
+  if(sel) sel.onchange = function() {
+    const cid = this.value;
+    if(cid) {
+      const existing = getInvoices(cid);
+      if(existing.length) {
+        renderInvoiceList(cid, existing);
+        const st = G('inv_status');
+        if(st) { st.className='evs evd'; st.innerHTML='<svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>&nbsp;'+existing.length+' invoice(s) already extracted. Click to re-extract.'; }
+      } else {
+        const el = G('inv_list'); if(el) el.innerHTML='';
+        const st = G('inv_status');
+        if(st) { st.className='evs evi'; st.innerHTML='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>&nbsp;Ready — click Extract to process all documents'; }
+      }
+    }
+  };
+}
+
+// ══════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════
+
+
+function getStorageInfo() {
+  let total = 0;
+  try {
+    for(let i=0; i<localStorage.length; i++) {
+      const k = localStorage.key(i);
+      const v = localStorage.getItem(k)||'';
+      total += k.length + v.length;
+    }
+  } catch(e) {}
+  const kb = Math.round(total * 2 / 1024); // UTF-16
+  return { kb, pct: Math.round(kb / 50) }; // ~5000KB limit
+}
+
+function cleanStorage() {
+  freeStorage();
+  // Also clear all file data for cases - only keep metadata
+  let freed = 0;
+  const keys = [];
+  for(let i=0; i<localStorage.length; i++) keys.push(localStorage.key(i));
+  keys.forEach(k => {
+    if(k && (k.startsWith('fd_') || k.startsWith('fdtmp_'))) {
+      const valid = CASES.some(c => (c.filesData||[]).some(f => f._key===k));
+      if(!valid) { localStorage.removeItem(k); freed++; }
+    }
+  });
+  toast('Freed ' + freed + ' orphaned files. Reloading...');
+  setTimeout(()=>renderSet(), 500);
+}
+
+function clearEvalOnly() {
+  if(!confirm('Clear all evaluation results? Case data is kept.')) return;
+  CASES.forEach(c => { c.eval = ''; });
+  save();
+  toast('Evaluations cleared — ' + CASES.length + ' cases kept');
+  renderSet();
+}
+
+function exportAllCases() {
+  const data = {exported: new Date().toISOString(), cases: CASES.length, data: CASES};
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'medassist_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  toast('All cases exported');
+}
+
+function renderSet() {
+  setTop('Settings','Configure API key, policy, and preferences','');
+  const s = S();
+  let html = '<div class="card"><div class="ct">API Connection</div>';
+  html += '<div class="ib"><p>Get your API key at <a href="https://console.anthropic.com" target="_blank" style="color:var(--navy);font-weight:600">console.anthropic.com</a> → API Keys → Create Key. It looks like: sk-ant-api03-...</p></div>';
+  html += '<div class="g2" style="margin-bottom:14px">';
+  html += '<div class="fg"><label>Your Name</label><input id="s_n" value="'+esc(s.name)+'" placeholder="Your name"></div>';
+  html += '<div class="fg"><label>Claude Model</label><select id="s_m">';
+  html += '<option value="claude-sonnet-4-5"'+(s.mod==='claude-sonnet-4-5'?' selected':'')+'>Claude Sonnet 4.5 — Recommended</option>';
+  html += '<option value="claude-opus-4-5"'+(s.mod==='claude-opus-4-5'?' selected':'')+'>Claude Opus 4.5 — Most Powerful</option>';
+  html += '<option value="claude-haiku-4-5-20251001"'+(s.mod==='claude-haiku-4-5-20251001'?' selected':'')+'>Claude Haiku 4.5 — Fastest</option>';
+  html += '</select></div></div>';
+  html += '<div class="fg" style="margin-bottom:14px"><label>Anthropic API Key</label>';
+  html += '<input type="password" id="s_k" value="'+esc(s.key)+'" placeholder="sk-ant-api03-...">';
+  html += '<span style="font-size:11px;color:var(--tx3);margin-top:4px;display:block">Stored only in your browser. Never sent anywhere except Anthropic directly.</span></div>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  html += '<button class="btn bp" onclick="saveSet()">Save Settings</button>';
+  html += '<button class="btn bs" id="testBtn" onclick="testAPI()">Test API Connection</button>';
+  html += '</div>';
+  html += '<div id="testResult" style="display:none;margin-top:10px"></div>';
+  html += '</div>';
+  html += '<div class="card"><div class="ct">Policy Wording</div>';
+  html += '<div class="ib"><p>Paste your full insurance policy text here. Claude reads it before every evaluation and quotes exact clauses. More text = more precise evaluations.</p></div>';
+  html += '<div class="fg"><label>Policy Text</label><textarea id="s_p" rows="10" style="font-family:\'DM Mono\',monospace;font-size:12px" placeholder="Paste full policy here...">'+esc(s.policy)+'</textarea>';
+  html += '<span id="s_wc" style="font-size:11px;color:var(--tx3);margin-top:4px;display:block">'+cntW(s.policy)+' words</span></div>';
+  html += '<button class="btn bp" style="margin-top:12px" onclick="saveSet()">Save Policy</button></div>';
+  // Calculate storage usage
+  let totalBytes = 0;
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k)totalBytes+=((localStorage.getItem(k)||'').length*2);}
+  const usedMB = (totalBytes/1024/1024).toFixed(1);
+  const usedPct = Math.min(100, Math.round(totalBytes/(5*1024*1024)*100));
+  const barColor = usedPct>80?'var(--red)':usedPct>60?'var(--am)':'var(--gr)';
+
+  html += '<div class="card"><div class="ct">Storage</div>';
+  html += '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:var(--tx2)">Used: <b>'+usedMB+' MB</b> of ~5 MB</span><span style="color:'+barColor+';font-weight:600">'+usedPct+'%</span></div>';
+  html += '<div style="height:8px;background:var(--bg4);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+usedPct+'%;background:'+barColor+';border-radius:4px;transition:width .3s"></div></div></div>';
+  html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  html += '<button class="btn bs" onclick="freeStorage();renderSet();toast(\'Storage cleaned\')">Clean Up Storage</button>';
+  html += '<button class="btn bs" onclick="clearEvalOnly()">Clear Evaluations Only</button>';
+  html += '<button class="btn bs" onclick="exportAllCases()">Export All Cases (.json)</button>';
+  html += '<button class="btn bd" onclick="confirmClearAll()">Delete All Data</button>';
+  html += '</div></div>';
+  G('con').innerHTML = html;
+  G('s_p').addEventListener('input', function(){ G('s_wc').textContent=cntW(this.value)+' words'; });
+}
+
+const cntW = t => (t||'').trim().split(/\s+/).filter(Boolean).length;
+
+function saveSet() {
+  const key = (G('s_k')||{}).value||'';
+  const mod = (G('s_m')||{}).value||'claude-sonnet-4-5';
+  const pol = (G('s_p')||{}).value||'';
+  const name = (G('s_n')||{}).value||'Team Member';
+  if(!MODELS.includes(mod)) { toast('Invalid model selected'); return; }
+  localStorage.setItem('mp_key', key);
+  localStorage.setItem('mp_mod', mod);
+  localStorage.setItem('mp_pol', pol);
+  localStorage.setItem('mp_name', name);
+  updBadges();
+  toast('Settings saved! Key: '+(key?key.substring(0,12)+'...':'EMPTY'));
+  console.log('[Settings] Saved - key starts:', key.substring(0,12), 'model:', mod);
+  // Sync API key to Firestore for this user
+  if(typeof saveApiKeyToFirestore==='function') saveApiKeyToFirestore(key, mod);
+}
+
+async function testAPI() {
+  const key = getKey();
+  const btn = G('testBtn');
+  const res = G('testResult');
+  if(!key) {
+    if(res){res.style.display='block';res.className='ib e';res.innerHTML='<p>No API key saved! Enter your key above and tap Save Settings first.</p>';}
+    return;
+  }
+  if(btn){btn.textContent='Testing...';btn.disabled=true;}
+  if(res){res.style.display='block';res.className='ib';res.innerHTML='<p>Connecting to Claude...</p>';}
+  try {
+    const result = await apiCall([{role:'user',content:'Reply with exactly the word: WORKING'}], null, 20);
+    if(res){res.className='ib s';res.innerHTML='<p>✓ API Connected! Model: '+getMod()+'<br>Response: '+esc(result.trim())+'</p>';}
+    toast('API is working!');
+  } catch(e) {
+    if(res){res.className='ib e';res.innerHTML='<p>✗ Error: '+esc(e.message)+'<br>Check your API key is correct and has credits.</p>';}
+    toast('API Error: '+e.message);
+  }
+  if(btn){btn.textContent='Test API Connection';btn.disabled=false;}
+}
+
+function clearAll() { CASES=[]; save(); updBadges(); renderDash(); toast('All data cleared'); }
+
+// ══════════════════════════════════════════════
+// EMAIL
+// ══════════════════════════════════════════════
+async function draftEmail(id) {
+  const c = getC(id); if(!c) return;
+  if(!getKey()) { toast('Add API key in Settings first'); return; }
+  setEvSt('run','Drafting email...');
+  try {
+    const prompt = 'Draft a professional TPA insurance coordination email. Case:'+c.caseNum+' Patient:'+(c.patient||'—')+' Insurer:'+(c.insurer||'—')+' Amount:€'+(c.amountClaimed||'—')+' Status:'+c.status+'. Write only the email body text, no subject line.';
+    const body = await apiCall([{role:'user',content:prompt}], 'You are a professional TPA coordinator. Write clear professional emails.', 600);
+    updC(id,{emailBody:body});
+    const eb = G('f_eb'); if(eb) eb.value=body;
+    setEvSt('done','Email drafted');
+    addTL(id,'Email drafted by AI');
+  } catch(e) { setEvSt('err','Error: '+e.message); }
+}
+
+function sendEmail(id) {
+  const c = getC(id); if(!c) return;
+  if(!c.emailTo) { toast('Enter recipient email address'); return; }
+  window.location.href = 'mailto:'+encodeURIComponent(c.emailTo)+'?subject='+encodeURIComponent(c.emailSubj||c.caseNum||'')+'&body='+encodeURIComponent(c.emailBody||'');
+}
+
+// ══════════════════════════════════════════════
+// EXPORT & DELETE
+// ══════════════════════════════════════════════
+function exportCase(id) {
+  const c = getC(id); if(!c) return;
+  const h = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+esc(c.caseNum)+'</title><style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:0 24px}h1{font-size:20px}h2{font-size:12px;text-transform:uppercase;color:#5c5a54;border-bottom:1px solid #e2e0d8;padding-bottom:4px;margin:20px 0 8px}pre{font-size:13px;line-height:1.7;white-space:pre-wrap}</style></head><body><h1>'+esc(c.patient||'Case')+'</h1><p style="color:#5c5a54;font-size:12px">'+esc(c.caseNum)+' | '+esc(c.dol||'—')+' | '+esc(c.country||'—')+' | '+esc(c.insurer||'—')+'</p><h2>Description</h2><pre>'+esc(c.desc||'—')+'</pre><h2>Evaluation</h2><pre>'+esc(c.eval||'Not evaluated')+'</pre><h2>Notes</h2><pre>'+esc(c.notes||'—')+'</pre></body></html>';
+  const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([h],{type:'text/html'})); a.download=(c.caseNum||'case')+'_export.html'; a.click();
+  toast('Exported');
+}
+
+function deleteCase(id) {
+  if(!confirm('Delete this case? Cannot be undone.')) return;
+  CASES = CASES.filter(c=>c.id!==id); save(); updBadges();
+  deleteCaseFromFirestore(id);
+  renderCases();
+  toast('Case deleted');
+}
+
+// ══════════════════════════════════════════════
+// LOGO
+// ══════════════════════════════════════════════
+const LOGO_B64 = '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';
+function initLogo() {
+  const loginLogo = document.getElementById('login-logo');
+  if(loginLogo && LOGO_B64 && LOGO_B64.length > 100) {
+    loginLogo.src = 'data:image/jpeg;base64,' + LOGO_B64;
+  }
+  const img = G('sbLogo');
+  if(img && LOGO_B64 !== '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') {
+    img.src = 'data:image/jpeg;base64,' + LOGO_B64;
+  } else if(img) {
+    img.style.display='none';
+    const div=document.createElement('div');
+    div.style.cssText='font-family:Syne,sans-serif;font-size:18px;font-weight:700;color:#fff;text-align:center;padding:4px 0';
+    div.textContent='HealthWatch';
+    img.parentNode.insertBefore(div,img.nextSibling);
+  }
+}
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+document.addEventListener('click', e => {
+  const sb=G('sb');
+  if(sb && sb.classList.contains('open') && !sb.contains(e.target)) sb.classList.remove('open');
+});
+
+// ── FIREBASE AUTH ──
+let CURRENT_USER = null;
+
+function showLoginScreen() {
+  const app = document.querySelector('.app');
+  const nav = document.getElementById('bnav');
+  if(app) app.style.display='none';
+  if(nav) nav.style.display='none';
+  const login = document.getElementById('login-screen');
+  if(login) login.style.display='flex';
+}
+
+function hideLoginScreen() {
+  const app = document.querySelector('.app');
+  const nav = document.getElementById('bnav');
+  if(app) app.style.display='flex';
+  if(nav) nav.style.display='';
+  const login = document.getElementById('login-screen');
+  if(login) login.style.display='none';
+}
+
+function signInWithGoogle() {
+  const btn = document.getElementById('login-btn');
+  if(btn) { btn.disabled=true; btn.innerHTML='<div class="spin" style="width:18px;height:18px;border-color:#fff;border-top-color:transparent"></div>&nbsp;Signing in...'; }
+  auth.signInWithPopup(provider).catch(e => {
+    toast('Sign in failed: '+e.message);
+    if(btn) { btn.disabled=false; btn.innerHTML='<svg viewBox="0 0 24 24" width="18" height="18" style="margin-right:8px"><path fill="#fff" d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.345-7.574 7.439-7.574c2.33 0 3.891.989 4.785 1.849l3.254-3.138C18.189 1.186 15.479 0 12.24 0c-6.635 0-12 5.365-12 12s5.365 12 12 12c6.926 0 11.52-4.869 11.52-11.726 0-.788-.085-1.39-.189-1.989H12.24z"/></svg>Sign in with Google'; }
+  });
+}
+
+function signOut() {
+  if(!confirm('Sign out?')) return;
+  auth.signOut();
+}
+
+async function syncCaseToFirestore(c) {
+  if(!CURRENT_USER) return;
+  try {
+    const data = {...c,
+      teamId:'healthwatch-tpa',
+      updatedBy:CURRENT_USER.email,
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if(data.filesData) data.filesData=data.filesData.map(f=>({name:f.name,size:f.size,type:f.type,ext:f.ext,_key:f._key||null}));
+    if(data.eval&&data.eval.length>3000) data.eval=data.eval.substring(0,3000)+'\n[...]';
+    await db.collection('cases').doc(c.id).set(data);
+  } catch(e) { console.warn('[FS] Sync error:',e.message); }
+}
+
+async function deleteCaseFromFirestore(caseId) {
+  if(!CURRENT_USER) return;
+  try { await db.collection('cases').doc(caseId).delete(); } catch(e) {}
+}
+
+async function loadFromFirestore() {
+  try {
+    const snap = await db.collection('cases')
+      .where('teamId','==','healthwatch-tpa')
+      .orderBy('created','desc')
+      .limit(500)
+      .get();
+    CASES = snap.docs.map(d=>({...d.data(), id:d.id}));
+    console.log('[FS] Loaded',CASES.length,'cases');
+  } catch(e) {
+    console.warn('[FS] Load error:',e.message);
+    try { CASES=JSON.parse(localStorage.getItem('mp_cases')||'[]'); } catch(e2){CASES=[];}
+  }
+}
+
+// Save API key to Firestore for this user
+async function saveApiKeyToFirestore(key, model) {
+  if(!CURRENT_USER) return;
+  try {
+    await db.collection('users').doc(CURRENT_USER.uid).set({apiKey:key, apiModel:model}, {merge:true});
+  } catch(e) { console.warn('[FS] API key save error:', e.message); }
+}
+
+// Auth state listener
+auth.onAuthStateChanged(async user => {
+  if(user) {
+    CURRENT_USER = user;
+    console.log('[Auth] Signed in:', user.email);
+    
+    // Save user profile
+    try {
+      await db.collection('users').doc(user.uid).set({
+        email:user.email, name:user.displayName||user.email,
+        photoURL:user.photoURL||'', teamId:'healthwatch-tpa',
+        lastLogin:firebase.firestore.FieldValue.serverTimestamp()
+      }, {merge:true});
+    } catch(e) {}
+
+    // Load user's API key from Firestore
+    try {
+      const udoc = await db.collection('users').doc(user.uid).get();
+      if(udoc.exists) {
+        if(udoc.data().apiKey) localStorage.setItem('mp_key', udoc.data().apiKey);
+        if(udoc.data().apiModel) localStorage.setItem('mp_mod', udoc.data().apiModel);
+        if(udoc.data().policy) localStorage.setItem('mp_pol', udoc.data().policy);
+      }
+    } catch(e) {}
+
+    hideLoginScreen();
+    initLogo();
+    initStorage();
+
+    // Update user display
+    const unm=G('unm'), uav=G('uav');
+    if(unm) unm.textContent=user.displayName||user.email;
+    if(uav) {
+      if(user.photoURL) uav.innerHTML='<img src="'+user.photoURL+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">';
+      else uav.textContent=(user.displayName||user.email||'U')[0].toUpperCase();
+    }
+
+    await loadFromFirestore();
+    updBadges();
+    renderDash();
+
+    const key=getKey();
+    if(!key) setTimeout(()=>toast('Welcome '+( user.displayName||'')+'! Add your API key in Settings.'),800);
+    else setTimeout(()=>toast('Welcome back '+( user.displayName||'')+'! '+CASES.length+' cases.'),400);
+
+  } else {
+    CURRENT_USER = null;
+    CASES = [];
+    showLoginScreen();
+  }
+});
+
+initLogo();
+</script>
+</body>
+</html>
