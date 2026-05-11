@@ -2532,6 +2532,14 @@ function _renderChatText(txt) {
   return s;
 }
 
+function _qaFill(text) {
+  var inp = document.getElementById('caseChatInput');
+  if(!inp) return;
+  inp.value = text;
+  inp.focus();
+  inp.setSelectionRange(text.length, text.length);
+}
+
 function _restoreChatHistory(chatHistory, msgs) {
   if(!chatHistory || !chatHistory.length || !msgs) return;
   msgs.innerHTML = '';
@@ -3751,7 +3759,7 @@ function renderCD(c) {
       'Flag any red flags or fraud indicators'
     ];
     suggestions.forEach(function(s){
-      html += '<button onclick="var inp=document.getElementById(\'caseChatInput\');if(inp){inp.value='+JSON.stringify(s)+';inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length);}" style="font-size:11px;padding:5px 11px;border:1px solid var(--bor2);border-radius:20px;background:var(--bg3);color:var(--tx2);cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor=\'var(--navy)\';this.style.color=\'var(--navy)\';this.style.background=\'rgba(26,42,114,.06)\'" onmouseout="this.style.borderColor=\'var(--bor2)\';this.style.color=\'var(--tx2)\';this.style.background=\'var(--bg3)\'">'+esc(s)+'</button>';
+      html += '<button data-q="'+esc(s)+'" onclick="_qaFill(this.getAttribute(\'data-q\'))" style="font-size:11px;padding:5px 11px;border:1px solid var(--bor2);border-radius:20px;background:var(--bg3);color:var(--tx2);cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor=\'var(--navy)\';this.style.color=\'var(--navy)\';this.style.background=\'rgba(26,42,114,.06)\'" onmouseout="this.style.borderColor=\'var(--bor2)\';this.style.color=\'var(--tx2)\';this.style.background=\'var(--bg3)\'">'+esc(s)+'</button>';
     });
     html += '</div>';
     html += '<div style="display:flex;gap:8px;align-items:flex-end">';
