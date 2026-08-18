@@ -144,6 +144,26 @@ label.dz,div.dz{border:2px dashed var(--bor2);border-radius:var(--r);padding:24p
 @keyframes chatDot{0%,80%,100%{opacity:.2;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
 .chatdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--tx3);margin:0 2px;animation:chatDot 1.2s ease-in-out infinite}
 
+/* ── UPGRADED: Case Q&A — Web Search + Provider Verification ── */
+.qa-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--bor)}
+.qa-pill{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+.qa-pill-policy{background:#1a2f5e;color:#fff}
+.qa-pill-case{background:#0d7377;color:#fff}
+.qa-pill-web{background:#d4860a;color:#fff}
+.qa-web-note{font-size:10px;color:#d4860a;margin-top:4px;display:flex;align-items:center;gap:4px}
+.pv-wrap{margin-top:12px;padding-top:10px;border-top:1px solid var(--bor)}
+.pv-row{display:flex;align-items:flex-start;gap:6px;padding:5px 9px;border-radius:6px;margin:3px 0;font-size:12px;font-weight:500;line-height:1.4}
+.pv-pass{background:#d1fae5;color:#065f46}
+.pv-warn{background:#fef3c7;color:#92400e}
+.pv-fail{background:#fee2e2;color:#991b1b}
+.pv-banner{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:8px;margin:8px 0 6px;font-weight:700;font-size:13px}
+.pv-approved{background:#d1fae5;border:2px solid #10b981;color:#065f46}
+.pv-caution{background:#fef3c7;border:2px solid #f59e0b;color:#92400e}
+.pv-reject{background:#fee2e2;border:2px solid #e8231a;color:#991b1b}
+.pv-save{margin-top:6px;padding:5px 12px;border-radius:6px;border:none;background:#1a2f5e;color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.pv-save:hover{opacity:.85}
+@media(max-width:480px){.qa-pill{font-size:9px;padding:2px 6px}.pv-row{font-size:11px}}
+
 
 /* EVAL RESULT */
 .er{margin-top:12px;font-size:13px;line-height:1.75;color:var(--tx2)}
@@ -1111,7 +1131,7 @@ async function apiCallStream(messages, systemPrompt, maxTokens, onChunk) {
   }
 
   // Non-streaming fallback
-  console.log('[Stream] Using non-streaming fetch');
+  console.warn('[Stream] Using non-streaming fetch');
   const body2 = { model: mod, max_tokens: maxTokens||1500, messages: messages, temperature: 0 };
   if(systemPrompt) body2.system = systemPrompt;
   const res2 = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1131,6 +1151,200 @@ async function apiCallStream(messages, systemPrompt, maxTokens, onChunk) {
   const result = (data2.content||[]).map(b=>b.text||'').join('');
   if(onChunk) onChunk(result, result); // single chunk callback
   return result;
+}
+
+// ── UPGRADED: Case Q&A — Web Search + Provider Verification ──
+// Streaming API call with built-in web_search_20250305 tool.
+// onChunk(chunk, fullText) called for each text delta.
+// onToolStart() called once when the model begins a web search.
+async function apiCallStreamWithSearch(messages, systemPrompt, maxTokens, onChunk, onToolStart) {
+  const key = getKey();
+  if(!key) throw new Error('No API key configured');
+
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: maxTokens || 2000,
+    messages: messages,
+    tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+    stream: true,
+    temperature: 0
+  };
+  if(systemPrompt) body.system = systemPrompt;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    mode: 'cors',
+    credentials: 'omit',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if(!res.ok) {
+    const err = await res.json().catch(function(){ return {}; });
+    throw new Error((err.error && err.error.message) || 'HTTP ' + res.status);
+  }
+  if(!res.body) throw new Error('Streaming not supported');
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullText = '';
+  let activeBlockType = null;
+  let webSearchUsed = false;
+
+  while(true) {
+    const {done, value} = await reader.read();
+    if(done) break;
+    buffer += decoder.decode(value, {stream: true});
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for(const line of lines) {
+      if(!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if(raw === '[DONE]') continue;
+      try {
+        const evt = JSON.parse(raw);
+        if(evt.type === 'content_block_start') {
+          activeBlockType = evt.content_block && evt.content_block.type;
+          const bName = evt.content_block && evt.content_block.name;
+          // Catch both tool_use and server_tool_use block types for web_search
+          if(bName === 'web_search' && !webSearchUsed) {
+            webSearchUsed = true;
+            if(onToolStart) onToolStart('web_search');
+          }
+        } else if(evt.type === 'content_block_delta' && activeBlockType === 'text') {
+          const txt = evt.delta && evt.delta.text;
+          if(txt) { fullText += txt; if(onChunk) onChunk(txt, fullText); }
+        } else if(evt.type === 'content_block_stop') {
+          activeBlockType = null;
+        }
+      } catch(e) {}
+    }
+  }
+  return { text: fullText, webSearchUsed: webSearchUsed };
+}
+
+// Returns true when the question is asking to verify a provider / check licensing
+function isProviderVerificationIntent(text) {
+  return /\b(verif(y|ied|ication)|licens(e|ed|ing)|accredit|legitimat|suitab(le|ility)|is (this|the) (hospital|clinic|facility|doctor|provider)|check.{0,30}provider|provider.{0,30}(check|valid|legit)|hospital.{0,20}treat|scope.{0,20}care)\b/i.test(text);
+}
+
+// Builds the auto-filled provider context block prepended to the API message
+function buildProviderContext(c) {
+  var icdStr = Array.isArray(c.icdCodes) ? c.icdCodes.join(', ') : (c.icdCodes || 'Not specified');
+  return [
+    'Case provider details (auto-filled from evaluation):',
+    '- Provider Name: ' + (c.hospital || c.paHospital || 'Not specified'),
+    '- Country / City: ' + (c.country || 'Not specified'),
+    '- Facility Type: ' + (c.facilityType || 'Medical Facility'),
+    '- Diagnosis: ' + (c.diagnosis || 'Not specified') + ' (ICD-10: ' + icdStr + ')',
+    '- Claimed Procedures: ' + (c.paProcedure || c.treatment || 'Not specified') +
+      ' (CPT: ' + (c.cptCodes || 'Not specified') + ')'
+  ].join('\n');
+}
+
+// Scans response text for [Policy], [Case], [Web — source] labels
+// and returns pill + web-note HTML to append below the bubble
+function _renderSourcePills(text, webSearchUsed) {
+  if(!text) return '';
+  var pills = [];
+  var hasWeb = !!webSearchUsed;
+  var labelledWeb = false;
+  var webSeen = {};
+
+  if(/\[Policy\]/i.test(text))
+    pills.push('<span class="qa-pill qa-pill-policy">&#x1F4CB; Policy</span>');
+  if(/\[Case\]/i.test(text))
+    pills.push('<span class="qa-pill qa-pill-case">&#x1F4C1; Case</span>');
+
+  var webRx = /\[Web\s*[—\-–]?\s*([^\]]*)\]/gi;
+  var wm;
+  while((wm = webRx.exec(text)) !== null) {
+    var src = wm[1].trim() || 'Web';
+    if(!webSeen[src]) {
+      webSeen[src] = true;
+      hasWeb = true;
+      labelledWeb = true;
+      pills.push('<span class="qa-pill qa-pill-web">&#x1F310; ' + esc(src) + '</span>');
+    }
+  }
+
+  // Search ran but the model cited no named source — still show a Web pill
+  if(hasWeb && !labelledWeb) pills.push('<span class="qa-pill qa-pill-web">&#x1F310; Web</span>');
+
+  if(!pills.length) return '';
+  return '<div class="qa-pills">' + pills.join('') + '</div>' +
+    (hasWeb ? '<div class="qa-web-note">&#x1F50D; Web search used</div>' : '');
+}
+
+// Parses ✅/⚠️/❌ rows and Overall: verdict from a provider verification response.
+// Returns the full styled verdict HTML (empty string if pattern not found).
+function _renderProviderVerdict(text, caseId, pvKey) {
+  if(!text) return '';
+  var rows = [];
+  // Match lines like: ✅ Legitimacy: confirmed blah blah
+  // U+FE0F (emoji variation selector) is optional — models often omit it after U+26A0.
+  var rowRx = /(✅|⚠️?|❌)\s+([^:\n]{1,40}):\s+([^\n]+)/g;
+  var rm;
+  while((rm = rowRx.exec(text)) !== null) {
+    var icon = rm[1];
+    var label = rm[2].trim();
+    var detail = rm[3].trim();
+    var isPass = icon.charAt(0) === '✅';
+    var isFail = icon.charAt(0) === '❌';
+    var cls = isPass ? 'pv-pass' : (isFail ? 'pv-fail' : 'pv-warn');
+    // Normalise the icon so a bare U+26A0 still renders in emoji style
+    var shownIcon = isPass ? '✅' : (isFail ? '❌' : '⚠️');
+    rows.push('<div class="pv-row ' + cls + '">' + shownIcon +
+      ' <strong>' + esc(label) + ':</strong>&nbsp;' + esc(detail) + '</div>');
+  }
+  if(!rows.length) return '';
+
+  var vm = text.match(/Overall\s*:\s*(APPROVED|CAUTION|REJECT)/i);
+  var verdict = vm ? vm[1].toUpperCase() : null;
+  var bannerCls = verdict === 'APPROVED' ? 'pv-approved' : verdict === 'REJECT' ? 'pv-reject' : 'pv-caution';
+  var bannerIcon = verdict === 'APPROVED' ? '✅' : verdict === 'REJECT' ? '❌' : '⚠️';
+
+  // Pass caseId/pvKey via data-* attributes — embedding a quoted JS string
+  // directly in onclick="" terminates the attribute early and breaks the button.
+  var saveBtn = (caseId && pvKey)
+    ? '<button class="pv-save" data-cid="' + esc(caseId) + '" data-pv="' + esc(pvKey) + '" ' +
+      'onclick="saveProviderVerification(this.getAttribute(\'data-cid\'),this.getAttribute(\'data-pv\'))">' +
+      '&#x1F4BE; Save to Case</button>'
+    : '';
+
+  return '<div class="pv-wrap">' + rows.join('') +
+    (verdict ? '<div class="pv-banner ' + bannerCls + '">' + bannerIcon + ' ' + esc(verdict) + '</div>' : '') +
+    saveBtn + '</div>';
+}
+
+// Verification results keyed per response, so each [Save to Case] button
+// saves its own answer rather than whichever verification ran most recently.
+var _pvStore = {};
+var _pvSeq = 0;
+
+function saveProviderVerification(caseId, pvKey) {
+  var result = _pvStore[pvKey];
+  if(!result) { toast('No verification result to save'); return; }
+  if(!caseId || !getC(caseId)) { toast('Case not found'); return; }
+  try {
+    updC(caseId, {
+      providerVerification: {
+        result: result,
+        date: new Date().toISOString(),
+        verifiedBy: 'Q&A Assistant'
+      }
+    });
+    toast('✓ Provider verification saved to case');
+  } catch(e) {
+    toast('Could not save verification: ' + (e.message||'').substring(0,60));
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -2339,6 +2553,14 @@ function _renderChatText(txt) {
   return s;
 }
 
+function _qaFill(text) {
+  var inp = document.getElementById('caseChatInput');
+  if(!inp) return;
+  inp.value = text;
+  inp.focus();
+  inp.setSelectionRange(text.length, text.length);
+}
+
 function _restoreChatHistory(chatHistory, msgs) {
   if(!chatHistory || !chatHistory.length || !msgs) return;
   msgs.innerHTML = '';
@@ -2350,6 +2572,7 @@ function _restoreChatHistory(chatHistory, msgs) {
   if(sugg) sugg.style.display = 'none';
 }
 
+// ── UPGRADED: Case Q&A — Web Search + Provider Verification ──
 async function sendCaseChat(presetText, caseId) {
   if(!getKey()) { toast('Add API key in Settings first'); return; }
   var id = caseId || window._currentCaseId;
@@ -2366,7 +2589,6 @@ async function sendCaseChat(presetText, caseId) {
   var sugg = document.getElementById('caseChatSuggestions');
   if(!msgs) return;
 
-  // Load persisted history from case record
   var chatHistory = (c.chatHistory && Array.isArray(c.chatHistory)) ? c.chatHistory : [];
 
   if(sugg) sugg.style.display = 'none';
@@ -2379,17 +2601,15 @@ async function sendCaseChat(presetText, caseId) {
 
   if(sendBtn) { sendBtn.disabled = true; sendBtn.style.opacity = '0.5'; }
 
-  // ── Policy wording lookup — mp_policies is an ARRAY ──
+  // ── Policy wording lookup ──
   var policyWording = '';
   var policyName = '';
   try {
     var polLib = JSON.parse(localStorage.getItem('mp_policies')||'[]');
-    // Priority 1: manually selected policy on case
     if(c.selectedPolicy) {
       var selPol = polLib.find(function(p){ return p.name === c.selectedPolicy; });
       if(selPol && selPol.wording) { policyWording = selPol.wording; policyName = selPol.name; }
     }
-    // Priority 2: auto-match by insurer name
     if(!policyWording && c.insurer) {
       var ins = (c.insurer||'').toLowerCase();
       var matched = polLib.find(function(p){
@@ -2408,7 +2628,6 @@ async function sendCaseChat(presetText, caseId) {
   } else if(langSetting === 'en') {
     langInstruction = 'LANGUAGE: Reply ONLY in English.';
   } else {
-    // Auto: detect from policy wording or case country
     var polIsGreek = policyWording && /[α-ωΑ-Ω]{10,}/.test(policyWording.substring(0,500));
     var caseIsGreek = /greece|greek|ελλ|hellas/i.test((c.country||'') + (c.insurer||''));
     if(polIsGreek || caseIsGreek) {
@@ -2441,10 +2660,25 @@ async function sendCaseChat(presetText, caseId) {
     policyWording ? ('=== POLICY WORDING: ' + policyName + ' ===\n' + policyWording.substring(0, 8000)) : '=== POLICY WORDING: Not available for this case ==='
   ].filter(Boolean).join('\n');
 
+  // ── Detect provider verification intent; prepend auto-filled context ──
+  var isProviderCheck = isProviderVerificationIntent(question);
+  var userMessage = isProviderCheck
+    ? buildProviderContext(c) + '\n\n' + question
+    : question;
+
+  // ── Upgraded system prompt: web search priority + provider verification ──
   var systemPrompt =
-    'You are a senior IPMI claims specialist and Lloyd\'s of London underwriter at HealthWatch Assistance (HWA), a medical TPA in Thessaloniki, Greece. ' +
-    'You have 20+ years of experience evaluating international health, IPMI, and travel insurance claims.\n\n' +
+    'You are the Case Q&A Assistant for HealthWatch Assistance (HWA), a medical TPA in Thessaloniki, Greece. ' +
+    'You have 20+ years of experience evaluating international IPMI and travel insurance claims. ' +
+    'You have access to: (1) the evaluated case data, (2) the uploaded policy document, and (3) the ability to search the web.\n\n' +
     langInstruction + '\n\n' +
+    'ANSWER PRIORITY:\n' +
+    '1. Check the case data and policy document first.\n' +
+    '2. If the question requires clinical knowledge, medical guidelines, drug references, ICD/CPT definitions, provider information, or regulatory data not found in the documents — use web search.\n' +
+    '3. Label every piece of information with its source:\n' +
+    '   [Policy] — from the uploaded policy document\n' +
+    '   [Case] — from the evaluated case data\n' +
+    '   [Web — source name] — from a web search (include the source name)\n\n' +
     'RULES — NON-NEGOTIABLE:\n' +
     '1. Answer with ABSOLUTE CERTAINTY based on (a) the case data below, (b) the policy wording provided, and (c) Lloyd\'s/IPMI standards\n' +
     '2. NEVER say "it depends", "possibly", or give vague non-answers — give a DEFINITIVE, ACTIONABLE answer every time\n' +
@@ -2453,7 +2687,19 @@ async function sendCaseChat(presetText, caseId) {
     '5. Structure: direct answer first → reasoning → applicable clause/standard → action required (if any)\n' +
     '6. Flag fraud indicators, inconsistencies, or red flags if you detect any\n' +
     '7. For amounts: always calculate the net eligible amount showing deductible, copay, and any exclusions\n' +
-    '8. For pre-existing conditions: apply standard 24-month moratorium unless policy states otherwise\n\n' +
+    '8. For pre-existing conditions: apply standard 24-month moratorium unless policy states otherwise\n' +
+    '9. Never fabricate clinical or regulatory information. If uncertain after searching, say so and recommend manual verification.\n\n' +
+    'PROVIDER VERIFICATION:\n' +
+    'When the user asks to verify a provider, check its legitimacy, suitability, licensing, or accreditation — use web search with the provider name, country, and specialty already known from the case data.\n' +
+    'Structure your answer EXACTLY as (use the exact emoji):\n' +
+    '✅/⚠️/❌ Legitimacy: [one sentence]\n' +
+    '✅/⚠️/❌ Suitability: [one sentence]\n' +
+    '✅/⚠️/❌ Scope: [one sentence]\n' +
+    '✅/⚠️/❌ Compliance: [one sentence]\n' +
+    'Overall: APPROVED / CAUTION / REJECT\n' +
+    'Summary: [2–3 sentences with source references]\n\n' +
+    'Use ✅ for confirmed pass, ⚠️ for uncertain or limited info, ❌ for confirmed issue. ' +
+    'If public information is limited, state clearly "Limited public information found — manual verification recommended" and use ⚠️ on all rows.\n\n' +
     '=== LLOYD\'S & IPMI REFERENCE STANDARDS ===\n' +
     'NMA 464: War/terrorism exclusions — passive terrorism victims ARE covered in modern IPMI\n' +
     'STANDARD EXCLUSIONS: pre-existing (24-60m moratorium), chronic maintenance, elective/cosmetic, dental (emergency only), mental health (30d inpatient/30 sessions outpatient), maternity (10m waiting, complications covered), HIV/AIDS, substance abuse, professional/hazardous sports, experimental treatment, congenital, IVF\n' +
@@ -2470,36 +2716,59 @@ async function sendCaseChat(presetText, caseId) {
 
   // Build message array for API (last 10 exchanges for context)
   var apiMessages = chatHistory.slice(-10).map(function(m){ return {role: m.role, content: m.content}; });
-  apiMessages.push({role: 'user', content: question});
+  apiMessages.push({role: 'user', content: userMessage});
 
   var streamEl = document.getElementById('chatStreamBubble');
   var fullAnswer = '';
+  var sawText = false;
 
   try {
-    await apiCallStream(
+    var searchResult = await apiCallStreamWithSearch(
       apiMessages,
       systemPrompt,
-      1800,
+      2000,
       function(chunk, full) {
+        // Text chunk arrived — clear loading dots and stream into bubble
         fullAnswer = full;
+        sawText = true;
         if(streamEl) {
           streamEl.id = '';
           streamEl.innerHTML = _renderChatText(full) +
             '<span style="display:inline-block;width:2px;height:13px;background:var(--navy);margin-left:3px;vertical-align:text-bottom;animation:chatCursor .7s step-end infinite"></span>';
           msgs.scrollTop = msgs.scrollHeight;
         }
+      },
+      function() {
+        // Web search started — show searching state only while the bubble is
+        // still empty, so we never overwrite text that has already streamed in.
+        if(streamEl && !sawText) {
+          streamEl.innerHTML =
+            '<span style="color:var(--tx3);font-size:12px">&#x1F50D; Searching web…</span>' +
+            '<span class="chatdot" style="margin-left:8px"></span>' +
+            '<span class="chatdot" style="animation-delay:.2s"></span>' +
+            '<span class="chatdot" style="animation-delay:.4s"></span>';
+        }
       }
     );
 
-    // Finalise — remove cursor
-    if(streamEl) { streamEl.innerHTML = _renderChatText(fullAnswer); }
-    else {
-      // Bubble was replaced — find last AI bubble and update
-      var allBubbles = msgs.querySelectorAll('div[style*="border-radius"]');
-      if(allBubbles.length) allBubbles[allBubbles.length-1].innerHTML = _renderChatText(fullAnswer);
-    }
+    // Ensure bubble id is cleared (handles case where no text chunks arrived)
+    if(streamEl && streamEl.id === 'chatStreamBubble') streamEl.id = '';
 
-    // ── Persist to case record ──
+    // Render final content: main text + provider verdict (if applicable) + source pills
+    if(streamEl) {
+      var webUsed = !!(searchResult && searchResult.webSearchUsed);
+      var verdictHtml = '';
+      if(isProviderCheck) {
+        var pvKey = 'pv' + (++_pvSeq);
+        verdictHtml = _renderProviderVerdict(fullAnswer, id, pvKey);
+        if(verdictHtml) _pvStore[pvKey] = fullAnswer;
+      }
+      streamEl.innerHTML = _renderChatText(fullAnswer) + verdictHtml +
+        _renderSourcePills(fullAnswer, webUsed);
+    }
+    msgs.scrollTop = msgs.scrollHeight;
+
+    // ── Persist to case record (save original question, not enriched message) ──
     chatHistory.push({role: 'user', content: question});
     chatHistory.push({role: 'assistant', content: fullAnswer});
     updC(id, {chatHistory: chatHistory});
@@ -2510,13 +2779,12 @@ async function sendCaseChat(presetText, caseId) {
     shortA = shortA.length > 120 ? shortA.substring(0,117)+'...' : shortA;
     addTL(id, '💬 Q: ' + shortQ + ' → A: ' + shortA);
 
-    msgs.scrollTop = msgs.scrollHeight;
-
   } catch(err) {
-    var errBubble = document.getElementById('chatStreamBubble');
+    var errBubble = document.getElementById('chatStreamBubble') || streamEl;
     if(errBubble) {
-      errBubble.id = '';
-      errBubble.innerHTML = '<span style="color:#e8231a;font-size:12px">⚠ ' + esc((err.message||'Error').substring(0,80)) + ' — please try again.</span>';
+      if(errBubble.id === 'chatStreamBubble') errBubble.id = '';
+      errBubble.innerHTML = '<span style="color:#e8231a;font-size:12px">&#x26A0; ' +
+        esc((err.message||'Error').substring(0,120)) + ' — please try again.</span>';
     }
     toast('Chat error: ' + (err.message||'').substring(0,60));
   }
@@ -3521,7 +3789,7 @@ function renderCD(c) {
       'Flag any red flags or fraud indicators'
     ];
     suggestions.forEach(function(s){
-      html += '<button onclick="sendCaseChat('+JSON.stringify(s)+',\''+esc(c.id)+'\')" style="font-size:11px;padding:5px 11px;border:1px solid var(--bor2);border-radius:20px;background:var(--bg3);color:var(--tx2);cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor=\'var(--navy)\';this.style.color=\'var(--navy)\';this.style.background=\'rgba(26,42,114,.06)\'" onmouseout="this.style.borderColor=\'var(--bor2)\';this.style.color=\'var(--tx2)\';this.style.background=\'var(--bg3)\'">'+esc(s)+'</button>';
+      html += '<button data-q="'+esc(s)+'" onclick="_qaFill(this.getAttribute(\'data-q\'))" style="font-size:11px;padding:5px 11px;border:1px solid var(--bor2);border-radius:20px;background:var(--bg3);color:var(--tx2);cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.style.borderColor=\'var(--navy)\';this.style.color=\'var(--navy)\';this.style.background=\'rgba(26,42,114,.06)\'" onmouseout="this.style.borderColor=\'var(--bor2)\';this.style.color=\'var(--tx2)\';this.style.background=\'var(--bg3)\'">'+esc(s)+'</button>';
     });
     html += '</div>';
     html += '<div style="display:flex;gap:8px;align-items:flex-end">';
@@ -5390,7 +5658,6 @@ function saveSet() {
   localStorage.setItem('mp_name', name);
   updBadges();
   toast('Settings saved! Key: '+(key?key.substring(0,12)+'...':'EMPTY'));
-  console.log('[Settings] Saved - key starts:', key.substring(0,12), 'model:', mod);
   // Sync API key to Firestore for this user
   if(typeof saveApiKeyToFirestore==='function') saveApiKeyToFirestore(key, mod);
 }
@@ -6268,7 +6535,6 @@ function setFBStatus(type, msg) {
   el.innerHTML = '<span style="font-size:12px;font-weight:600;color:'+( colors[type]||'#6b7280')+'">'+(icons[type]||'⚪')+' '+msg+'</span>';
 }
 
-console.log('[Firebase Sync] Module loaded');
 
 
 // ── Dynamic Firebase Loader ─────────────────────────────────
@@ -8286,7 +8552,6 @@ function injectStandardsPanels(c, cid) {
   if(fraudEl) fraudEl.innerHTML = renderFraudPanel(c);
 }
 
-console.log('[Standards] IPMI enhancements loaded: SLA/TAT, PA, Repatriation, Reserves, Fraud');
 
 
 
@@ -10359,12 +10624,13 @@ function renderFL_C(caseId) {
 function openEvalReport(fileIdx) {
   var ef = FILES[fileIdx];
   if(!ef || !ef.data) { toast('Evaluation report not available'); return; }
-  var win = window.open('', '_blank');
-  if(!win) { toast('Please allow popups to open the evaluation report'); return; }
   var html = decodeURIComponent(escape(atob(ef.data.split(';base64,')[1] || '')));
-  win.document.write(html);
-  win.document.close();
+  var blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var win = window.open(url, '_blank', 'noopener');
+  if(!win) { URL.revokeObjectURL(url); toast('Please allow popups to open the evaluation report'); return; }
   setTimeout(function(){ try{ win.print(); }catch(e){} }, 800);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
 }
 
 function downloadEvalReport(fileIdx) {
@@ -10509,9 +10775,7 @@ function emailPendingLetter(caseId) {
 function printPendingLetter() {
   var letter = window._pendingLetter || (G('doc_pi_output')||{}).textContent || '';
   if(!letter) { toast('Generate the letter first'); return; }
-  var win = window.open('', '_blank');
-  if(!win) { toast('Allow popups to print'); return; }
-  win.document.write('<!DOCTYPE html><html><head><title>Further Information Request</title>'
+  var html = '<!DOCTYPE html><html><head><title>Further Information Request</title>'
     + '<style>body{font-family:Georgia,serif;max-width:750px;margin:40px auto;font-size:13px;line-height:1.8;color:#111}'
     + '.hdr{border-bottom:2px solid #1a2a72;padding-bottom:10px;margin-bottom:24px}'
     + '.co{font-size:18px;font-weight:700;color:#1a2a72}.addr{font-size:11px;color:#555;margin-top:3px}'
@@ -10520,9 +10784,13 @@ function printPendingLetter() {
     + '<div class="hdr"><div class="co">HealthWatch Assistance TPA</div>'
     + '<div class="addr">Thermi, Thessaloniki, Greece | sami@healthwatch.gr</div></div>'
     + '<pre style="white-space:pre-wrap;font-family:Georgia,serif;font-size:13px;line-height:1.8">' + esc(letter) + '</pre>'
-    + '<scr'+'ipt>window.onload=function(){window.print()}<\/scr'+'ipt>'
-    + '</body></html>');
-  win.document.close();
+    + '<script>window.onload=function(){window.print()}<\/script>'
+    + '</body></html>';
+  var blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var win = window.open(url, '_blank', 'noopener');
+  if(!win) { URL.revokeObjectURL(url); toast('Allow popups to print'); return; }
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
 }
 
 function downloadPendingLetter(caseId) {
@@ -10554,11 +10822,10 @@ function reExtract(fileIdx, caseId) {
   extractAndMerge(fd, caseId);
 }
 
-console.log('[DocEngine] Loaded — supports: PDF, Word, Excel, Images (HEIC/TIFF/JPG/PNG), Text, CSV, RTF, Email, HTML');
 
 
 // ── Password Protection ──────────────────────────────────────
-var PW_HASH = localStorage.getItem('hw_custom_pw') || 'bd3833c860081604e77d562f832ed9c80a31c0772d6764b40b5fcf5ba5512656'; // SHA-256('healthwatch2024')
+var PW_HASH = localStorage.getItem('hw_custom_pw') || null;
 var PW_SESSION_KEY = 'hw_session_ok_v2';
 var PW_ATTEMPTS = 0;
 var PW_LOCKED_UNTIL = 0;
@@ -10572,14 +10839,23 @@ async function checkPassword() {
   var now = Date.now();
   if(PW_LOCKED_UNTIL > now) {
     var secs = Math.ceil((PW_LOCKED_UNTIL - now)/1000);
-    document.getElementById('pw-err').textContent = 'Too many attempts. Wait '+secs+' seconds.';
+    var mins = Math.ceil(secs/60);
+    document.getElementById('pw-err').textContent = 'Too many attempts. Wait '+(secs > 60 ? mins+' minutes' : secs+' seconds')+'.';
     return;
   }
   var input = document.getElementById('pw-input').value;
   if(!input) { document.getElementById('pw-err').textContent = 'Please enter the password.'; return; }
+
+  // First-run setup: no password configured yet
+  if(!PW_HASH) {
+    if(input.length < 8) { document.getElementById('pw-err').textContent = 'Password must be at least 8 characters.'; return; }
+    var setupHash = await hashString(input);
+    PW_HASH = setupHash;
+    localStorage.setItem('hw_custom_pw', setupHash);
+  }
+
   var hash = await hashString(input);
   if(hash === PW_HASH) {
-    // Correct — store session and hide screen
     PW_ATTEMPTS = 0;
     sessionStorage.setItem(PW_SESSION_KEY, '1');
     var screen = document.getElementById('pw-screen');
@@ -10591,8 +10867,8 @@ async function checkPassword() {
   } else {
     PW_ATTEMPTS++;
     if(PW_ATTEMPTS >= 5) {
-      PW_LOCKED_UNTIL = Date.now() + 30000; // 30 second lockout
-      document.getElementById('pw-err').textContent = 'Too many attempts. Locked for 30 seconds.';
+      PW_LOCKED_UNTIL = Date.now() + 300000; // 5 minute lockout
+      document.getElementById('pw-err').textContent = 'Too many attempts. Locked for 5 minutes.';
     } else {
       document.getElementById('pw-err').textContent = 'Incorrect password. ('+(5-PW_ATTEMPTS)+' attempts remaining)';
     }
@@ -10611,6 +10887,20 @@ document.addEventListener('DOMContentLoaded', function() {
   if(inp) inp.addEventListener('keydown', function(e){
     if(e.key==='Enter') checkPassword();
   });
+
+  // First-run: no password set — show setup prompt
+  if(!PW_HASH) {
+    var label = document.getElementById('pw-label');
+    var sub = document.getElementById('pw-sub');
+    var btn = document.getElementById('pw-btn');
+    var forgot = document.getElementById('pw-forgot');
+    if(label) label.textContent = 'Create Password';
+    if(inp) inp.placeholder = 'Set a password (min. 8 characters)';
+    if(sub) sub.textContent = 'First-run setup — create your access password';
+    if(btn) btn.textContent = 'Set Password →';
+    if(forgot) forgot.style.display = 'none';
+  }
+
   // Check if already authenticated in this session
   if(sessionStorage.getItem(PW_SESSION_KEY)==='1') {
     var screen = document.getElementById('pw-screen');
