@@ -1251,10 +1251,11 @@ function buildProviderContext(c) {
 
 // Scans response text for [Policy], [Case], [Web — source] labels
 // and returns pill + web-note HTML to append below the bubble
-function _renderSourcePills(text) {
+function _renderSourcePills(text, webSearchUsed) {
   if(!text) return '';
   var pills = [];
-  var hasWeb = false;
+  var hasWeb = !!webSearchUsed;
+  var labelledWeb = false;
   var webSeen = {};
 
   if(/\[Policy\]/i.test(text))
@@ -1269,9 +1270,13 @@ function _renderSourcePills(text) {
     if(!webSeen[src]) {
       webSeen[src] = true;
       hasWeb = true;
+      labelledWeb = true;
       pills.push('<span class="qa-pill qa-pill-web">&#x1F310; ' + esc(src) + '</span>');
     }
   }
+
+  // Search ran but the model cited no named source — still show a Web pill
+  if(hasWeb && !labelledWeb) pills.push('<span class="qa-pill qa-pill-web">&#x1F310; Web</span>');
 
   if(!pills.length) return '';
   return '<div class="qa-pills">' + pills.join('') + '</div>' +
@@ -1280,18 +1285,23 @@ function _renderSourcePills(text) {
 
 // Parses ✅/⚠️/❌ rows and Overall: verdict from a provider verification response.
 // Returns the full styled verdict HTML (empty string if pattern not found).
-function _renderProviderVerdict(text, caseId) {
+function _renderProviderVerdict(text, caseId, pvKey) {
   if(!text) return '';
   var rows = [];
   // Match lines like: ✅ Legitimacy: confirmed blah blah
-  var rowRx = /(✅|⚠️|❌)\s+([^:\n]{1,40}):\s+([^\n]+)/g;
+  // U+FE0F (emoji variation selector) is optional — models often omit it after U+26A0.
+  var rowRx = /(✅|⚠️?|❌)\s+([^:\n]{1,40}):\s+([^\n]+)/g;
   var rm;
   while((rm = rowRx.exec(text)) !== null) {
     var icon = rm[1];
     var label = rm[2].trim();
     var detail = rm[3].trim();
-    var cls = icon === '✅' ? 'pv-pass' : (icon === '❌' ? 'pv-fail' : 'pv-warn');
-    rows.push('<div class="pv-row ' + cls + '">' + icon +
+    var isPass = icon.charAt(0) === '✅';
+    var isFail = icon.charAt(0) === '❌';
+    var cls = isPass ? 'pv-pass' : (isFail ? 'pv-fail' : 'pv-warn');
+    // Normalise the icon so a bare U+26A0 still renders in emoji style
+    var shownIcon = isPass ? '✅' : (isFail ? '❌' : '⚠️');
+    rows.push('<div class="pv-row ' + cls + '">' + shownIcon +
       ' <strong>' + esc(label) + ':</strong>&nbsp;' + esc(detail) + '</div>');
   }
   if(!rows.length) return '';
@@ -1301,8 +1311,11 @@ function _renderProviderVerdict(text, caseId) {
   var bannerCls = verdict === 'APPROVED' ? 'pv-approved' : verdict === 'REJECT' ? 'pv-reject' : 'pv-caution';
   var bannerIcon = verdict === 'APPROVED' ? '✅' : verdict === 'REJECT' ? '❌' : '⚠️';
 
-  var saveBtn = caseId
-    ? '<button class="pv-save" onclick="saveProviderVerification(' + JSON.stringify(caseId) + ')">' +
+  // Pass caseId/pvKey via data-* attributes — embedding a quoted JS string
+  // directly in onclick="" terminates the attribute early and breaks the button.
+  var saveBtn = (caseId && pvKey)
+    ? '<button class="pv-save" data-cid="' + esc(caseId) + '" data-pv="' + esc(pvKey) + '" ' +
+      'onclick="saveProviderVerification(this.getAttribute(\'data-cid\'),this.getAttribute(\'data-pv\'))">' +
       '&#x1F4BE; Save to Case</button>'
     : '';
 
@@ -1311,19 +1324,27 @@ function _renderProviderVerdict(text, caseId) {
     saveBtn + '</div>';
 }
 
-// Holds the last provider verification response for the [Save to Case] button
-var _lastProviderVerification = null;
+// Verification results keyed per response, so each [Save to Case] button
+// saves its own answer rather than whichever verification ran most recently.
+var _pvStore = {};
+var _pvSeq = 0;
 
-function saveProviderVerification(caseId) {
-  if(!_lastProviderVerification) { toast('No verification result to save'); return; }
-  updC(caseId, {
-    providerVerification: {
-      result: _lastProviderVerification,
-      date: new Date().toISOString(),
-      verifiedBy: 'Q&A Assistant'
-    }
-  });
-  toast('✓ Provider verification saved to case');
+function saveProviderVerification(caseId, pvKey) {
+  var result = _pvStore[pvKey];
+  if(!result) { toast('No verification result to save'); return; }
+  if(!caseId || !getC(caseId)) { toast('Case not found'); return; }
+  try {
+    updC(caseId, {
+      providerVerification: {
+        result: result,
+        date: new Date().toISOString(),
+        verifiedBy: 'Q&A Assistant'
+      }
+    });
+    toast('✓ Provider verification saved to case');
+  } catch(e) {
+    toast('Could not save verification: ' + (e.message||'').substring(0,60));
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -2699,6 +2720,7 @@ async function sendCaseChat(presetText, caseId) {
 
   var streamEl = document.getElementById('chatStreamBubble');
   var fullAnswer = '';
+  var sawText = false;
 
   try {
     var searchResult = await apiCallStreamWithSearch(
@@ -2708,6 +2730,7 @@ async function sendCaseChat(presetText, caseId) {
       function(chunk, full) {
         // Text chunk arrived — clear loading dots and stream into bubble
         fullAnswer = full;
+        sawText = true;
         if(streamEl) {
           streamEl.id = '';
           streamEl.innerHTML = _renderChatText(full) +
@@ -2716,8 +2739,9 @@ async function sendCaseChat(presetText, caseId) {
         }
       },
       function() {
-        // Web search tool started — update loading bubble to searching state
-        if(streamEl && streamEl.id === 'chatStreamBubble') {
+        // Web search started — show searching state only while the bubble is
+        // still empty, so we never overwrite text that has already streamed in.
+        if(streamEl && !sawText) {
           streamEl.innerHTML =
             '<span style="color:var(--tx3);font-size:12px">&#x1F50D; Searching web…</span>' +
             '<span class="chatdot" style="margin-left:8px"></span>' +
@@ -2732,9 +2756,15 @@ async function sendCaseChat(presetText, caseId) {
 
     // Render final content: main text + provider verdict (if applicable) + source pills
     if(streamEl) {
-      var verdictHtml = isProviderCheck ? _renderProviderVerdict(fullAnswer, id) : '';
-      if(verdictHtml) window._lastProviderVerification = fullAnswer;
-      streamEl.innerHTML = _renderChatText(fullAnswer) + verdictHtml + _renderSourcePills(fullAnswer);
+      var webUsed = !!(searchResult && searchResult.webSearchUsed);
+      var verdictHtml = '';
+      if(isProviderCheck) {
+        var pvKey = 'pv' + (++_pvSeq);
+        verdictHtml = _renderProviderVerdict(fullAnswer, id, pvKey);
+        if(verdictHtml) _pvStore[pvKey] = fullAnswer;
+      }
+      streamEl.innerHTML = _renderChatText(fullAnswer) + verdictHtml +
+        _renderSourcePills(fullAnswer, webUsed);
     }
     msgs.scrollTop = msgs.scrollHeight;
 
